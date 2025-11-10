@@ -7,6 +7,7 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        /* ... (기존 CSS 코드는 동일하게 유지) ... */
         :root {
             --primary-color: #007bff;
             --secondary-color: #28a745;
@@ -335,8 +336,9 @@
     </div>
 
     <script>
-        // 🚨 중요: 여기에 GAS 웹 앱 URL을 붙여넣으세요.
-        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwdN7XIXXiTeyEooTCW3-r7Cwxegazj0yJMGjppB9A1oQ9-rMLeAI9uJHoQKlxsEuUsXQ/exec'; 
+        // ⭐️ google.script.run 방식은 GAS_API_URL이 필요 없습니다. 
+        // POST 요청만 URL을 사용하며, 이는 스크립트 실행 환경에서 자동으로 처리됩니다.
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwfqgJqeE3Dfa2NtG5WiVqFWAeKM3zTSl_B2I6oBzhUS702UC20hR-8CNY4Wto1yl5bVg/exec'; 
         
         // **********************************************
         // 1. 상태 변수 및 유틸리티
@@ -352,16 +354,14 @@
         const padTwoDigits = (num) => String(num).padStart(2, '0');
 
         // **********************************************
-        // 2. 로케이션 필드 관리
+        // 2. 로케이션 필드 관리 (기존과 동일하게 유지)
         // **********************************************
 
         function updateLocationField(formType) {
-            
             let prefix = '';
             if (formType === 'outbound') prefix = 'p_';
             else if (formType === 'update') prefix = 'u_';
 
-            // ID 존재 여부를 먼저 확인
             const rackTypeEl = document.getElementById(`${prefix}rackType`);
             const rackColEl = document.getElementById(`${prefix}rackCol`);
             const rackFloorEl = document.getElementById(`${prefix}rackFloor`);
@@ -375,16 +375,13 @@
             let rackFloor = rackFloorEl.value;
             let rackSide = rackSideEl.value; 
             
-            // 두 자리 숫자 포맷 강제 적용
             if (rackCol) rackCol = padTwoDigits(rackCol);
             if (rackFloor) rackFloor = padTwoDigits(rackFloor);
             if (rackSide) rackSide = padTwoDigits(rackSide);
             
-            // 로케이션 코드: 열-층-좌우 (ex: 01-01-01)
             const locationCode = (rackCol && rackFloor && rackSide) ? `${rackCol}-${rackFloor}-${rackSide}` : '';
             
             if (rackType && locationCode) {
-                // 최종 전체 로케이션: 랙-열-층-좌우 (ex: A-01-01-01)
                 fullLocationField.value = `${rackType}-${locationCode}`;
             } else {
                 fullLocationField.value = '';
@@ -402,15 +399,13 @@
             if (container) {
                 const elements = container.querySelectorAll('.location-group select, .location-group input[type="number"]');
                 elements.forEach(element => {
-                    // 기존 리스너 제거 (중복 방지)
                     element.removeEventListener('change', () => updateLocationField(formType));
                     element.removeEventListener('input', () => updateLocationField(formType));
                     
-                    // 새 리스너 추가
                     element.addEventListener('change', () => updateLocationField(formType));
                     element.addEventListener('input', () => updateLocationField(formType));
                 });
-                updateLocationField(formType); // 초기 실행
+                updateLocationField(formType);
             }
         }
 
@@ -466,43 +461,36 @@
             }
         }
 
-        /** 상품 정보를 GAS로부터 가져오는 함수 (자동 기입 로직 수정 및 강화) */
-        async function fetchProductInfo(barcode, formType) {
-            // 모든 폼의 상태 메시지를 초기화 (클리어)
+        /** ⭐️ 상품 정보를 GAS로부터 가져오는 함수 (google.script.run 방식) ⭐️ */
+        function fetchProductInfo(barcode, formType) {
+            // 메시지 초기화
             document.getElementById('statusMessage').innerHTML = '';
             document.getElementById('pickingStatusMessage').innerHTML = '';
             document.getElementById('updateStatusMessage').innerHTML = '';
 
-            try {
-                if (GAS_API_URL === 'YOUR_GAS_API_URL_HERE') {
-                    // ... (기존 에러 메시지) ...
-                    alert('🚨 GAS API URL이 설정되지 않았습니다. 코드를 확인하세요.');
-                    return;
+            // 로딩 상태 표시
+            const updateFields = () => {
+                document.getElementById('p_itemName').value = '조회 중...';
+                document.getElementById('p_itemCode').value = '조회 중...';
+                document.getElementById('u_itemName').value = '조회 중...';
+                document.getElementById('u_itemCode').value = '조회 중...';
+                if (formType === 'inbound') {
+                    document.getElementById('itemName').value = '조회 중...';
+                    document.getElementById('itemCode').value = '조회 중...';
                 }
-                
-                const url = `${GAS_API_URL}?action=GET_ITEM&barcode=${barcode}`;
-                const response = await fetch(url);
+            };
+            updateFields();
 
-                // ⭐️ 응답 텍스트를 먼저 가져와서 파싱 오류에 대비 ⭐️
-                const responseText = await response.text();
-                let result;
-                try {
-                    result = JSON.parse(responseText);
-                } catch (e) {
-                    console.error('GAS GET 응답 파싱 실패:', responseText);
-                    alert('🚨 상품 정보 조회 실패: 서버가 JSON 형식으로 응답하지 않았습니다. (GAS 스크립트 오류)');
-                    throw new Error("Invalid JSON response from server");
-                }
-                
+            // 성공 콜백
+            const onSuccess = (result) => {
                 if (result.success && result.item) {
-                    // ... (기존 성공 로직 동일) ...
                     const itemName = result.item.itemName;
                     const itemCode = result.item.itemCode;
 
                     // 입고 폼: 기존 값이 없거나 비어있으면 자동 기입 
                     if (formType === 'inbound') {
-                        if (!document.getElementById('itemName').value) document.getElementById('itemName').value = itemName;
-                        if (!document.getElementById('itemCode').value) document.getElementById('itemCode').value = itemCode;
+                        if (document.getElementById('itemName').value === '조회 중...') document.getElementById('itemName').value = itemName;
+                        if (document.getElementById('itemCode').value === '조회 중...') document.getElementById('itemCode').value = itemCode;
                     } 
                     
                     // 출고/수정 폼: 무조건 자동 기입 
@@ -510,9 +498,8 @@
                     document.getElementById('p_itemCode').value = itemCode;
                     document.getElementById('u_itemName').value = itemName;
                     document.getElementById('u_itemCode').value = itemCode;
-
                 } else {
-                    // ... (기존 정보 없음 로직 동일) ...
+                    // 상품 정보 없음
                     if (formType === 'inbound') {
                         document.getElementById('itemName').value = '';
                         document.getElementById('itemCode').value = '';
@@ -525,16 +512,29 @@
                         alert(`⚠️ ${barcode}의 재고 정보가 마스터에 없습니다. (조회 메시지: ${result.message})`);
                     }
                 }
-            } catch (error) {
-                // 통신 자체의 실패 또는 위에 명시된 JSON 파싱 오류
+            };
+
+            // 실패 콜백 (통신 오류 및 GAS 스크립트 실행 오류)
+            const onFailure = (error) => {
                 console.error('상품 정보 조회 오류:', error);
-                alert(`🔴 통신/조회 스크립트 오류: ${error.message}.`);
+                alert(`🔴 google.script.run 통신 오류 발생. (메시지: ${error})`);
+                
                 // 오류 시 필드 N/A 처리
                 document.getElementById('p_itemName').value = 'Error';
                 document.getElementById('p_itemCode').value = 'Error';
                 document.getElementById('u_itemName').value = 'Error';
                 document.getElementById('u_itemCode').value = 'Error';
-            }
+                if (formType === 'inbound') {
+                    document.getElementById('itemName').value = 'Error';
+                    document.getElementById('itemCode').value = 'Error';
+                }
+            };
+
+            // GAS 함수 실행
+            google.script.run
+                .withSuccessHandler(onSuccess)
+                .withFailureHandler(onFailure)
+                .findProductInfoGAS(barcode);
         }
 
         
@@ -546,7 +546,7 @@
         }
 
         // **********************************************
-        // 4. 동적 폼 전환
+        // 4. 동적 폼 전환 (기존과 동일하게 유지)
         // **********************************************
 
         function switchForm(type) {
@@ -577,29 +577,32 @@
         }
 
         // **********************************************
-        // 5. API 통신 및 폼 제출
+        // 5. API 통신 및 폼 제출 (POST) - fetch 사용 (doPost)
         // **********************************************
 
-        /** API 호출 공통 함수 */
+        /** API 호출 공통 함수 (POST 요청은 fetch 유지) */
         async function sendDataToGAS(data, statusElement) {
             statusElement.innerHTML = '처리 중...';
             statusElement.className = '';
             
             try {
+                // ⭐️ POST 요청은 fetch를 사용하며, URL은 재배포된 웹 앱의 URL이어야 합니다. ⭐️
+                if (GAS_API_URL === 'YOUR_GAS_API_URL_HERE') {
+                    throw new Error('GAS API URL이 설정되지 않았습니다. POST 요청을 위해 URL을 확인하세요.');
+                }
+
                 const response = await fetch(GAS_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(data)
                 });
                 
-                // HTTP 응답이 비어있거나 JSON이 아닐 경우 오류 처리 강화
                 const responseText = await response.text();
                 let result;
                 try {
                     result = JSON.parse(responseText);
                 } catch (e) {
-                    // 서버에서 JSON이 아닌 응답 (HTML 또는 일반 오류 텍스트)이 왔을 경우
-                    console.error('GAS 서버로부터 JSON이 아닌 응답을 받음:', responseText);
+                    console.error('GAS POST 응답 파싱 실패:', responseText);
                     statusElement.innerHTML = `ERROR: 서버 응답을 해석할 수 없습니다. GAS 스크립트 오류(${response.status}).`;
                     statusElement.className = 'error';
                     return false;
@@ -610,25 +613,22 @@
                     statusElement.className = 'success';
                     return true;
                 } else {
-                    // GAS 스크립트 내부에서 발생시킨 논리적 오류 (재고 부족 등)
                     statusElement.innerHTML = `ERROR: ${result.message}`;
                     statusElement.className = 'error';
                     return false;
                 }
             } catch (error) {
-                // 네트워크 또는 CORS/GAS URL 오류
                 statusElement.innerHTML = `통신 실패: 서버 연결 또는 네트워크 오류. (메시지: ${error.message})`;
                 statusElement.className = 'error';
                 return false;
             }
         }
 
-        // 1. 입고/지정 폼 제출
+        // --- 폼 이벤트 리스너 (기존과 동일하게 유지) ---
         const locationForm = document.getElementById('locationForm');
         locationForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // ⭐️ 필수 필드 유효성 검사 (메시지 박스)
             if (!document.getElementById('fullLocation').value || 
                 !document.getElementById('barcode').value.trim() ||
                 !document.getElementById('itemName').value.trim() ||
@@ -641,12 +641,11 @@
                 return;
             }
 
-
             const fullLocationValue = document.getElementById('fullLocation').value.trim();
             const fullLocationParts = fullLocationValue.split('-'); 
             
             const rackType = fullLocationParts[0]; 
-            const locationCode = fullLocationParts.slice(1).join('-'); // 01-01-01
+            const locationCode = fullLocationParts.slice(1).join('-'); 
 
             const data = {
                 barcode: document.getElementById('barcode').value.trim(),
@@ -668,11 +667,9 @@
             }
         });
 
-        // 2. 출고 폼 제출
         const pickingForm = document.getElementById('pickingForm');
         pickingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-             // ⭐️ 필수 필드 유효성 검사
             if (!document.getElementById('p_fullLocation').value || 
                 !document.getElementById('p_barcode').value.trim() ||
                 !document.getElementById('p_batchNo').value.trim() ||
@@ -711,11 +708,9 @@
             }
         });
         
-        // 3. 재고 수정 폼 제출
         const stockUpdateForm = document.getElementById('stockUpdateForm');
         stockUpdateForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // ⭐️ 필수 필드 유효성 검사
             if (!document.getElementById('u_fullLocation').value || 
                 !document.getElementById('u_barcode').value.trim() ||
                 !document.getElementById('u_batchNo').value.trim() ||
@@ -752,12 +747,9 @@
             }
         });
 
-        // 초기 로드 시 입고 폼 활성화 및 로케이션 리스너 연결
         document.addEventListener('DOMContentLoaded', () => {
             switchForm('inbound');
         });
     </script>
 </body>
 </html>
-
-
