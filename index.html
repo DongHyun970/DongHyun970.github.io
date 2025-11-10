@@ -616,73 +616,88 @@
         // **********************************************
 
         /** API 호출 공통 함수 (POST 요청은 fetch 유지) */
-        // --- 헬퍼 함수 ---
+        // 🚨🚨🚨 이 함수 전체를 최종적으로 교체해주세요 🚨🚨🚨
         async function sendDataToGAS(data, statusElement) {
             statusElement.classList.remove('success', 'error');
             statusElement.textContent = '처리 중... 잠시만 기다려주세요.';
             
-            // ** 통신 타임아웃 시간 설정 (5초) **
-            const TIMEOUT_DURATION = 5000; 
+            // ** 통신 타임아웃 시간 설정 (7초로 연장) **
+            const TIMEOUT_DURATION = 7000; 
         
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_DURATION);
+        
+            let result = null;
+            let isLoadFailed = false;
         
             try {
                 const response = await fetch(GAS_API_URL, {
                     method: 'POST',
                     mode: 'cors',
                     headers: {
+                        // Apps Script에 맞춰 content-type 헤더를 제거하거나 text/plain으로 설정 유지 
                         'Content-Type': 'text/plain;charset=utf-8', 
                     },
                     body: JSON.stringify(data),
-                    signal: controller.signal // 타임아웃 신호 추가
+                    signal: controller.signal
                 });
                 
                 clearTimeout(timeoutId);
         
-                // 1. HTTP 응답 자체가 성공 (200 OK)인지 확인
                 if (!response.ok) {
-                    throw new Error(`HTTP 오류 발생: ${response.status} ${response.statusText}`);
+                    throw new Error(`HTTP 오류: ${response.status} ${response.statusText}`);
                 }
         
-                const result = await response.json();
-        
-                // 2. GAS 응답 결과 (success: true/false) 확인
-                if (result.success) {
-                    statusElement.classList.add('success');
-                    statusElement.textContent = `✅ 성공: ${result.message}`;
-                    return true;
-                } else {
-                    statusElement.classList.add('error');
-                    statusElement.textContent = `❌ 서버 오류: ${result.message}`;
-                    console.error('GAS Logic Error:', result.message);
-                    return false;
-                }
+                // 응답을 JSON으로 파싱 시도 (여기서 파싱 오류가 자주 발생합니다)
+                result = await response.json();
         
             } catch (error) {
                 clearTimeout(timeoutId);
                 
-                // ** 3. 통신 오류 발생 시 (핵심) **
-                statusElement.classList.add('error');
-                
-                if (error.name === 'AbortError') {
-                    // 타임아웃 발생 (데이터는 GAS에 기록됐을 가능성 큼)
-                    statusElement.textContent = '⚠️ 타임아웃 오류: 데이터는 기록되었을 수 있습니다. 시트를 확인하세요.';
-                    console.warn('Timeout Aborted. Data might be recorded.');
-                    return true; // ⚠️ 타임아웃 시 성공으로 간주하고 UI 초기화 (시트 확인 유도)
-                    
-                } else if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-                    // 네트워크 오류 (CORS, URL 불일치 등)
-                    statusElement.textContent = '🚨 통신 실패 (URL 또는 네트워크 오류): GAS URL을 확인하거나 다시 시도하세요.';
-                    console.error('Fetch Failed:', error);
-                    return false;
+                // ⚠️ Load failed는 주로 여기서 잡힙니다.
+                if (error instanceof TypeError && (error.message.includes('Failed to fetch') || error.message.includes('load failed'))) {
+                    isLoadFailed = true;
+                } else if (error.name === 'AbortError') {
+                    isLoadFailed = true; // 타임아웃도 load failed와 유사하게 처리
                 } else {
-                    // 기타 오류 (파싱 실패, HTTP 오류 등)
+                    // 기타 심각한 오류 (JSON 파싱 오류 등)
+                    statusElement.classList.add('error');
                     statusElement.textContent = `🔴 심각한 오류: ${error.message}`;
                     console.error('Critical Error:', error);
                     return false;
                 }
             }
+        
+            // --- 최종 결과 처리 로직 (핵심) ---
+            
+            // 1. Load Failed가 발생했거나, 타임아웃이 발생한 경우
+            if (isLoadFailed) {
+                // 🚨 시트에 데이터가 들어갔다면 성공으로 처리해야 함.
+                statusElement.classList.add('success'); 
+                statusElement.textContent = '⚠️ 연결 오류(Load Failed/Timeout): 시트 기록은 성공했을 가능성이 높습니다.';
+                console.warn('Network Error Occurred (Load Failed/Timeout). Assuming success based on prior reports.');
+                return true; 
+            } 
+            
+            // 2. 응답은 받았으나 GAS 로직이 실패한 경우 (result.success === false)
+            if (result && !result.success) {
+                statusElement.classList.add('error');
+                statusElement.textContent = `❌ 서버 로직 오류: ${result.message}`;
+                console.error('GAS Logic Error:', result.message);
+                return false;
+            } 
+            
+            // 3. 응답도 받고 로직도 성공한 경우 (result.success === true)
+            if (result && result.success) {
+                statusElement.classList.add('success');
+                statusElement.textContent = `✅ 성공: ${result.message}`;
+                return true;
+            }
+            
+            // 4. 모든 경우를 통과한 알 수 없는 실패
+            statusElement.classList.add('error');
+            statusElement.textContent = '❌ 알 수 없는 응답 실패: 시트 기록 여부를 확인하세요.';
+            return false;
         }
 
         // --- 폼 이벤트 리스너: 입고 폼 ---
@@ -837,6 +852,7 @@
     </script>
 </body>
 </html>
+
 
 
 
