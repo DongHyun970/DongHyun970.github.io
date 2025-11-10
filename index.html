@@ -15,7 +15,7 @@
             --info-color: #ffc107;
             --background-color: #f8f9fa;
             --card-background: #ffffff;
-            --text-color: #343a40;
+            --text-color: #343a30;
             --shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         body { 
@@ -336,8 +336,12 @@
     </div>
 
     <script>
-        // ⭐️ google.script.run 방식은 GAS_API_URL이 필요 없습니다. 
-        // POST 요청만 URL을 사용하며, 이는 스크립트 실행 환경에서 자동으로 처리됩니다.
+        // ⭐️ GVIZ/TQ 조회를 위한 설정 (Google Sheets 문서 ID와 시트 GID) ⭐️
+        // 🚨🚨🚨 이 값을 반드시 본인의 Google Sheets 정보로 변경해야 합니다. 🚨🚨🚨
+        const SHEET_ID = '1v5ogbr-49ttfBQISH_S5mIdUTthqhytHmfvvr9IsSMo'; // Google Sheets URL에서 추출
+        const MASTER_SHEET_GID = '17496908'; // Inventory_Master 시트의 GID. (URL의 #gid= 값)
+
+        // 입/출고 POST 요청을 위한 GAS URL (기존 URL 유지)
         const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwfqgJqeE3Dfa2NtG5WiVqFWAeKM3zTSl_B2I6oBzhUS702UC20hR-8CNY4Wto1yl5bVg/exec'; 
         
         // **********************************************
@@ -461,45 +465,67 @@
             }
         }
 
-        /** ⭐️ 상품 정보를 GAS로부터 가져오는 함수 (google.script.run 방식) ⭐️ */
-        function fetchProductInfo(barcode, formType) {
-            // 메시지 초기화
+        /** ⭐️ 상품 정보를 GVIZ/TQ 방식으로 조회하는 함수 (GitHub Pages 호환) ⭐️ */
+        async function fetchProductInfo(barcode, formType) {
             document.getElementById('statusMessage').innerHTML = '';
             document.getElementById('pickingStatusMessage').innerHTML = '';
             document.getElementById('updateStatusMessage').innerHTML = '';
 
-            // 로딩 상태 표시
-            const updateFields = () => {
-                document.getElementById('p_itemName').value = '조회 중...';
-                document.getElementById('p_itemCode').value = '조회 중...';
-                document.getElementById('u_itemName').value = '조회 중...';
-                document.getElementById('u_itemCode').value = '조회 중...';
+            const updateFields = (status) => {
+                const value = status === 'loading' ? '조회 중...' : 'Error';
+                const empty = status === 'error' ? 'N/A' : '';
+                
+                document.getElementById('p_itemName').value = value;
+                document.getElementById('p_itemCode').value = value;
+                document.getElementById('u_itemName').value = value;
+                document.getElementById('u_itemCode').value = value;
+                
                 if (formType === 'inbound') {
-                    document.getElementById('itemName').value = '조회 중...';
-                    document.getElementById('itemCode').value = '조회 중...';
+                    document.getElementById('itemName').value = status === 'error' ? 'Error' : empty;
+                    document.getElementById('itemCode').value = status === 'error' ? 'Error' : empty;
                 }
             };
-            updateFields();
+            updateFields('loading');
 
-            // 성공 콜백
-            const onSuccess = (result) => {
-                if (result.success && result.item) {
-                    const itemName = result.item.itemName;
-                    const itemCode = result.item.itemCode;
+            // Inventory_Master 시트 구조: A=바코드, B=상품명, C=상품코드
+            const query = encodeURIComponent(`SELECT B, C WHERE A = '${barcode}'`);
+            
+            // GVIZ/TQ 엔드포인트 URL 생성
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${MASTER_SHEET_GID}&tq=${query}`;
 
-                    // 입고 폼: 기존 값이 없거나 비어있으면 자동 기입 
+            if (SHEET_ID === 'YOUR_DOCUMENT_ID_HERE') {
+                 alert('🚨 SHEET_ID를 설정하지 않았습니다. 스크립트 상단 상수를 확인하세요.');
+                 updateFields('error');
+                 return;
+            }
+
+            try {
+                const response = await fetch(url);
+                const responseText = await response.text();
+                
+                // Gviz 응답에서 JSON 데이터만 추출
+                const jsonText = responseText.substring(responseText.indexOf('{'), responseText.lastIndexOf('}') + 1);
+                const result = JSON.parse(jsonText);
+
+                if (result.table.rows.length > 0) {
+                    // 결과 행이 있을 경우
+                    const itemData = result.table.rows[0].c;
+                    const itemName = itemData[0] ? itemData[0].v : 'N/A'; // B열 (상품명)
+                    const itemCode = itemData[1] ? itemData[1].v : 'N/A'; // C열 (상품코드)
+
+                    // 성공적으로 필드 기입
                     if (formType === 'inbound') {
-                        if (document.getElementById('itemName').value === '조회 중...') document.getElementById('itemName').value = itemName;
-                        if (document.getElementById('itemCode').value === '조회 중...') document.getElementById('itemCode').value = itemCode;
+                        document.getElementById('itemName').value = itemName;
+                        document.getElementById('itemCode').value = itemCode;
                     } 
-                    
-                    // 출고/수정 폼: 무조건 자동 기입 
                     document.getElementById('p_itemName').value = itemName;
                     document.getElementById('p_itemCode').value = itemCode;
                     document.getElementById('u_itemName').value = itemName;
                     document.getElementById('u_itemCode').value = itemCode;
+
                 } else {
                     // 상품 정보 없음
+                    updateFields('notfound');
                     if (formType === 'inbound') {
                         document.getElementById('itemName').value = '';
                         document.getElementById('itemCode').value = '';
@@ -509,32 +535,14 @@
                         document.getElementById('p_itemCode').value = 'N/A';
                         document.getElementById('u_itemName').value = 'N/A';
                         document.getElementById('u_itemCode').value = 'N/A';
-                        alert(`⚠️ ${barcode}의 재고 정보가 마스터에 없습니다. (조회 메시지: ${result.message})`);
+                        alert(`⚠️ ${barcode}의 재고 정보가 마스터에 없습니다.`);
                     }
                 }
-            };
-
-            // 실패 콜백 (통신 오류 및 GAS 스크립트 실행 오류)
-            const onFailure = (error) => {
+            } catch (error) {
                 console.error('상품 정보 조회 오류:', error);
-                alert(`🔴 google.script.run 통신 오류 발생. (메시지: ${error})`);
-                
-                // 오류 시 필드 N/A 처리
-                document.getElementById('p_itemName').value = 'Error';
-                document.getElementById('p_itemCode').value = 'Error';
-                document.getElementById('u_itemName').value = 'Error';
-                document.getElementById('u_itemCode').value = 'Error';
-                if (formType === 'inbound') {
-                    document.getElementById('itemName').value = 'Error';
-                    document.getElementById('itemCode').value = 'Error';
-                }
-            };
-
-            // GAS 함수 실행
-            google.script.run
-                .withSuccessHandler(onSuccess)
-                .withFailureHandler(onFailure)
-                .findProductInfoGAS(barcode);
+                updateFields('error');
+                alert(`🔴 GVIZ/TQ 통신/파싱 오류 발생: ${error.message}. SHEET_ID 및 시트의 '웹에 게시' 설정을 확인하세요.`);
+            }
         }
 
         
@@ -618,7 +626,8 @@
                     return false;
                 }
             } catch (error) {
-                statusElement.innerHTML = `통신 실패: 서버 연결 또는 네트워크 오류. (메시지: ${error.message})`;
+                statusElement.innerHTML = `🔴 통신 실패: 서버 연결 또는 네트워크 오류. (메시지: ${error.message})<br>
+                                            GAS 웹 앱 URL이 올바르거나 만료되지 않았는지, GAS의 doPost에 CORS 헤더가 포함되어 있는지 확인하세요.`;
                 statusElement.className = 'error';
                 return false;
             }
