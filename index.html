@@ -1,69 +1,90 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>창고 바코드 입출고 시스템</title>
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
-  <script defer src="script.js"></script>
-  <style>
-    body { font-family: sans-serif; padding: 10px; text-align: center; }
-    video { width: 100%; max-width: 480px; border: 2px solid #ccc; border-radius: 6px; }
-    select, input, button { margin-top: 8px; width: 90%; max-width: 400px; padding: 10px; font-size: 16px; box-sizing: border-box;}
-    .info-box { text-align: left; margin: 10px auto; max-width: 400px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;}
-    .location-fields input, .location-fields select { width: 30%; display: inline-block; }
-    /* 읽기 전용 필드 스타일 */
-    input[readonly] { background-color: #f0f0f0; } 
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>물류 로케이션 관리 시스템</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+        input, button { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+    </style>
 </head>
 <body>
-  <h2>📦 실시간 입출고 관리</h2>
 
-  <video id="preview"></video>
+    <h1>📦 로케이션 지정 / 재고 입고</h1>
+    <p>바코드 스캐너(예: 모바일 카메라)로 인식하거나 직접 입력하세요.</p>
+    
+    <form id="locationForm">
+        <label for="barcode">상품 바코드:</label>
+        <input type="text" id="barcode" placeholder="상품 바코드를 스캔/입력" required>
 
-  <select id="type">
-    <option value="입고">입고</option>
-    <option value="출고">출고</option>
-  </select>
-  
-  <div class="info-box">
-    <h3>상품 정보 및 위치 (바코드 스캔)</h3>
-    <label>바코드</label><br>
-    <input id="barcode" readonly placeholder="바코드 스캔 대기">
-    <div id="productInfo" style="margin-top: 10px;"></div>
-  </div>
+        <label for="batchNo">배치번호:</label>
+        <input type="text" id="batchNo" placeholder="배치번호를 스캔/입력" required>
 
-  <input id="product" placeholder="상품명 (자동입력 또는 신규입력)">
-  <input id="itemCode" placeholder="아이템 코드 (자동입력 또는 신규입력)">
-  <input id="batch" placeholder="배치번호 (필수)">
-  <input id="qty" type="number" min="1" placeholder="수량 (필수)">
+        <label for="location">랙 로케이션 바코드:</label>
+        <input type="text" id="location" placeholder="랙 로케이션을 스캔/입력" required>
+        
+        <label for="quantity">수량 (입고):</label>
+        <input type="number" id="quantity" value="1" min="1" required>
 
-  <h3>로케이션 정보</h3>
-  <div class="location-fields">
-    <select id="rack">
-      <option value="">랙 선택</option>
-      <option value="A">A 랙</option>
-      <option value="B">B 랙</option>
-      <option value="C">C 랙</option>
-    </select>
-    <input id="column" type="number" min="1" placeholder="열 (1~)">
-    <input id="level" type="number" min="1" placeholder="층 (1~)">
-  </div>
-  <select id="side">
-    <option value="">측면 선택</option>
-    <option value="좌측">좌측</option>
-    <option value="우측">우측</option>
-  </select>
+        <button type="submit">✅ 로케이션 지정 및 입고</button>
+    </form>
+    
+    <div id="statusMessage"></div>
 
-  <select id="manager">
-    <option value="">작업자 선택</option>
-    <option>홍길동</option>
-    <option>이철수</option>
-    <option>박영희</option>
-  </select>
+    <script>
+        // 🚨 중요: 여기에 1단계에서 복사한 **GAS 웹 앱 URL**을 붙여넣으세요.
+        const GAS_API_URL = 'YOUR_DEPLOYED_GAS_WEB_APP_URL_HERE'; 
 
-  <button id="saveBtn">저장</button>
+        const form = document.getElementById('locationForm');
+        const statusMessage = document.getElementById('statusMessage');
 
-  <p id="status" style="font-weight: bold;"></p>
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            statusMessage.innerHTML = '처리 중...';
+            statusMessage.className = '';
+
+            const data = {
+                barcode: document.getElementById('barcode').value.trim(),
+                batchNo: document.getElementById('batchNo').value.trim(),
+                location: document.getElementById('location').value.trim(),
+                quantity: parseInt(document.getElementById('quantity').value, 10),
+                action: "IN_LOC"
+            };
+            
+            // fetch를 사용하여 GAS API로 데이터 전송
+            try {
+                const response = await fetch(GAS_API_URL, {
+                    method: 'POST',
+                    // GAS는 JSON 형태의 데이터를 postData.contents로 받기 위해 Content-Type을 지정
+                    headers: {
+                        'Content-Type': 'text/plain' // 중요: CORS 우회를 위해 text/plain을 권장
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+
+                if (result.success) {
+                    statusMessage.innerHTML = `SUCCESS: ${result.message}`;
+                    statusMessage.className = 'success';
+                    // 성공 후 입력 필드 초기화
+                    document.getElementById('barcode').value = '';
+                    document.getElementById('batchNo').value = '';
+                    document.getElementById('location').value = '';
+                    document.getElementById('quantity').value = '1';
+                    document.getElementById('barcode').focus(); // 다시 스캔할 수 있도록 포커스 이동
+                } else {
+                    statusMessage.innerHTML = `ERROR: ${result.message}`;
+                    statusMessage.className = 'error';
+                }
+            } catch (error) {
+                statusMessage.innerHTML = `통신 실패: 서버 연결 또는 네트워크 오류 (${error.message})`;
+                statusMessage.className = 'error';
+            }
+        });
+    </script>
 </body>
 </html>
