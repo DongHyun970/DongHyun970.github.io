@@ -78,4 +78,3 @@ saveBtn.addEventListener('click', async () => {
 });
 
 startScanner();
-
