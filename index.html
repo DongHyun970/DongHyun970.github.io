@@ -9,8 +9,11 @@
   <style>
     body { font-family: sans-serif; padding: 10px; text-align: center; }
     video { width: 100%; max-width: 480px; border: 2px solid #ccc; border-radius: 6px; }
-    select, input, button { margin-top: 8px; width: 90%; max-width: 400px; padding: 10px; font-size: 16px; }
-    .info-box { text-align: left; margin: 10px auto; max-width: 400px; }
+    select, input, button { margin-top: 8px; width: 90%; max-width: 400px; padding: 10px; font-size: 16px; box-sizing: border-box;}
+    .info-box { text-align: left; margin: 10px auto; max-width: 400px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;}
+    .location-fields input, .location-fields select { width: 30%; display: inline-block; }
+    /* 읽기 전용 필드 스타일 */
+    input[readonly] { background-color: #f0f0f0; } 
   </style>
 </head>
 <body>
@@ -18,43 +21,49 @@
 
   <video id="preview"></video>
 
-  <div class="info-box">
-    <label>바코드</label><br>
-    <input id="barcode" readonly>
-    <div id="productInfo"></div>
-  </div>
-
   <select id="type">
     <option value="입고">입고</option>
     <option value="출고">출고</option>
   </select>
+  
+  <div class="info-box">
+    <h3>상품 정보 및 위치 (바코드 스캔)</h3>
+    <label>바코드</label><br>
+    <input id="barcode" readonly placeholder="바코드 스캔 대기">
+    <div id="productInfo" style="margin-top: 10px;"></div>
+  </div>
 
-  <input id="product" placeholder="상품명">
-  <input id="itemCode" placeholder="아이템 코드">
-  <input id="batch" placeholder="배치번호 (예: B20251110)">
-  <input id="qty" type="number" min="1" placeholder="수량">
+  <input id="product" placeholder="상품명 (자동입력 또는 신규입력)">
+  <input id="itemCode" placeholder="아이템 코드 (자동입력 또는 신규입력)">
+  <input id="batch" placeholder="배치번호 (필수)">
+  <input id="qty" type="number" min="1" placeholder="수량 (필수)">
+
+  <h3>로케이션 정보</h3>
+  <div class="location-fields">
+    <select id="rack">
+      <option value="">랙 선택</option>
+      <option value="A">A 랙</option>
+      <option value="B">B 랙</option>
+      <option value="C">C 랙</option>
+    </select>
+    <input id="column" type="number" min="1" placeholder="열 (1~)">
+    <input id="level" type="number" min="1" placeholder="층 (1~)">
+  </div>
+  <select id="side">
+    <option value="">측면 선택</option>
+    <option value="좌측">좌측</option>
+    <option value="우측">우측</option>
+  </select>
 
   <select id="manager">
+    <option value="">작업자 선택</option>
     <option>홍길동</option>
     <option>이철수</option>
     <option>박영희</option>
   </select>
 
-  <select id="rack">
-    <option value="A">A 랙</option>
-    <option value="B">B 랙</option>
-    <option value="C">C 랙</option>
-  </select>
-
-  <input id="column" type="number" min="1" placeholder="열 (1~)">
-  <input id="level" type="number" min="1" placeholder="층 (1~)">
-  <select id="side">
-    <option value="좌측">좌측</option>
-    <option value="우측">우측</option>
-  </select>
-
   <button id="saveBtn">저장</button>
 
-  <p id="status"></p>
+  <p id="status" style="font-weight: bold;"></p>
 </body>
 </html>
