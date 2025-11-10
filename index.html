@@ -369,7 +369,7 @@
 
         // 입/출고 POST 요청을 위한 GAS URL 
         // 🚨🚨🚨 GAS 웹 앱 재배포 후 반드시 최신 URL로 업데이트해야 합니다. 🚨🚨🚨
-        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwcYHYKJwxgzqZem0qHfSxPdv1BB-MSglg3J5LyohZ0JAmjX7aM2weSb4KqRhb4XKZgWg/exec'; 
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxoF-9lPNSIa9h1Zzfm0ZK50ncTBlEMx9xSJ3AlAlRx4Shk9ys9saZLnlNNNKEh5MIDsg/exec'; 
         
         // **********************************************
         // 1. 상태 변수 및 유틸리티
@@ -616,7 +616,6 @@
         // **********************************************
 
         /** API 호출 공통 함수 (POST 요청은 fetch 유지) */
-        // 🚨🚨🚨 이 함수 전체를 최종적으로 교체해주세요 🚨🚨🚨
         async function sendDataToGAS(data, statusElement) {
             statusElement.classList.remove('success', 'error');
             statusElement.textContent = '처리 중... 잠시만 기다려주세요.';
@@ -670,12 +669,12 @@
             } catch (error) {
                 clearTimeout(timeoutId);
                 
-                // ** 통신 오류 발생 시 (Load Failed, AbortError, Failed to fetch 등) **
-                // 사용자 피드백(데이터 기록됨)에 따라 이 오류를 무조건 '성공으로 간주'하여 오류 메시지를 숨깁니다.
-                statusElement.classList.add('success'); 
-                statusElement.textContent = '⚠️ 네트워크 지연: 데이터는 기록되었을 가능성이 높습니다.';
-                console.warn('Network Error Ignored. Assumed success based on data logs:', error);
-                return true; 
+                // ** 네트워크/타임아웃 오류 발생 시 (Load Failed, AbortError 등) **
+                statusElement.classList.add('error'); 
+                // 서버 로직은 실행되었을 수 있지만, 클라이언트에게는 실패 메시지를 표시하여 재시도를 유도합니다.
+                statusElement.textContent = `❌ 통신 실패: 서버 연결 또는 네트워크 오류. (메시지: ${error.name || error.message}). Google Sheets를 직접 확인하거나 잠시 후 다시 시도하세요.`;
+                console.error('Network/Timeout Error:', error);
+                return false; 
             }
         }
 
@@ -685,36 +684,34 @@
             e.preventDefault();
             
             // ⭐️ 필수 입력 검증 강화 (대화상자 보장) ⭐️
-            if (!document.getElementById('fullLocation').value || 
-                !document.getElementById('barcode').value.trim() ||
-                !document.getElementById('itemName').value.trim() ||
-                !document.getElementById('itemCode').value.trim() ||
-                !document.getElementById('batchNo').value.trim() ||
-                !document.getElementById('quantity').value || 
-                parseInt(document.getElementById('quantity').value, 10) <= 0 ||
-                !document.getElementById('responsiblePerson').value.trim()) // ⭐️ 담당자 필드 검증 추가 ⭐️
+            const fullLocationValue = document.getElementById('fullLocation').value.trim();
+            const barcodeValue = document.getElementById('barcode').value.trim();
+            const itemNameValue = document.getElementById('itemName').value.trim();
+            const itemCodeValue = document.getElementById('itemCode').value.trim();
+            const batchNoValue = document.getElementById('batchNo').value.trim();
+            const quantityValue = document.getElementById('quantity').value;
+            const responsiblePersonValue = document.getElementById('responsiblePerson').value.trim();
+
+            if (!fullLocationValue || !barcodeValue || !itemNameValue || !itemCodeValue || 
+                !batchNoValue || !quantityValue || parseInt(quantityValue, 10) <= 0 || !responsiblePersonValue) 
             {
                 alert('🚨 필수 입력 항목을 모두 확인하고 다시 시도해주세요.\n(로케이션, 바코드, 상품명, 상품코드, 배치번호, 수량은 1 이상, 담당자)');
                 return;
             }
 
-            const fullLocationValue = document.getElementById('fullLocation').value.trim();
             const fullLocationParts = fullLocationValue.split('-'); 
-            
             const rackType = fullLocationParts[0]; 
             const locationCode = fullLocationParts.slice(1).join('-'); 
             
-            const responsiblePerson = document.getElementById('responsiblePerson').value.trim();
-
             const data = {
-                barcode: document.getElementById('barcode').value.trim(),
-                batchNo: document.getElementById('batchNo').value.trim(),
+                barcode: barcodeValue,
+                batchNo: batchNoValue,
                 rackType: rackType,
                 location: locationCode, 
-                quantity: parseInt(document.getElementById('quantity').value, 10),
-                itemName: document.getElementById('itemName').value.trim(),
-                itemCode: document.getElementById('itemCode').value.trim(),
-                responsiblePerson: responsiblePerson, // ⭐️ 담당자 데이터 추가 ⭐️
+                quantity: parseInt(quantityValue, 10), // 입고는 양수
+                itemName: itemNameValue,
+                itemCode: itemCodeValue,
+                responsiblePerson: responsiblePersonValue, 
                 action: "IN_LOC"
             };
             
@@ -725,7 +722,7 @@
                 updateLocationField('inbound'); 
                 document.getElementById('barcode').focus();
                 // 담당자 드롭다운의 선택 값은 유지
-                document.getElementById('responsiblePerson').value = responsiblePerson;
+                document.getElementById('responsiblePerson').value = responsiblePersonValue;
             }
         });
 
@@ -733,37 +730,36 @@
         const pickingForm = document.getElementById('pickingForm');
         pickingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // ⭐️ 필수 입력 검증 강화 (대화상자 보장) ⭐️
-            if (!document.getElementById('p_fullLocation').value || 
-                !document.getElementById('p_barcode').value.trim() ||
-                !document.getElementById('p_batchNo').value.trim() ||
-                !document.getElementById('p_quantity').value || 
-                parseInt(document.getElementById('p_quantity').value, 10) <= 0 ||
-                !document.getElementById('p_responsiblePerson').value.trim()) // ⭐️ 담당자 필드 검증 추가 ⭐️
+            
+            // ⭐️ 필수 입력 검증 강화 ⭐️
+            const pFullLocationValue = document.getElementById('p_fullLocation').value.trim();
+            const pBarcodeValue = document.getElementById('p_barcode').value.trim();
+            const pBatchNoValue = document.getElementById('p_batchNo').value.trim();
+            const pQuantityValue = document.getElementById('p_quantity').value;
+            const pResponsiblePersonValue = document.getElementById('p_responsiblePerson').value.trim();
+
+            if (!pFullLocationValue || !pBarcodeValue || !pBatchNoValue || 
+                !pQuantityValue || parseInt(pQuantityValue, 10) <= 0 || !pResponsiblePersonValue) 
             {
                 alert('🚨 필수 입력 항목을 모두 확인하고 다시 시도해주세요.\n(로케이션, 바코드, 배치번호, 수량은 1 이상, 담당자)');
                 return;
             }
 
-            const qtyToSubtract = parseInt(document.getElementById('p_quantity').value, 10) * -1;
+            const qtyToSubtract = parseInt(pQuantityValue, 10) * -1;
 
-            const fullLocationValue = document.getElementById('p_fullLocation').value.trim();
-            const fullLocationParts = fullLocationValue.split('-'); 
-            
+            const fullLocationParts = pFullLocationValue.split('-'); 
             const rackType = fullLocationParts[0]; 
             const locationCode = fullLocationParts.slice(1).join('-');
-
-            const pResponsiblePerson = document.getElementById('p_responsiblePerson').value.trim();
             
             const data = {
-                barcode: document.getElementById('p_barcode').value.trim(),
-                batchNo: document.getElementById('p_batchNo').value.trim(),
+                barcode: pBarcodeValue,
+                batchNo: pBatchNoValue,
                 rackType: rackType,
                 location: locationCode, 
-                quantity: qtyToSubtract, 
+                quantity: qtyToSubtract, // 출고는 음수
                 itemName: document.getElementById('p_itemName').value.trim(),
                 itemCode: document.getElementById('p_itemCode').value.trim(),
-                responsiblePerson: pResponsiblePerson, // ⭐️ 담당자 데이터 추가 ⭐️
+                responsiblePerson: pResponsiblePersonValue, 
                 action: "OUT_PICK"
             };
 
@@ -774,7 +770,7 @@
                 updateLocationField('outbound'); 
                 document.getElementById('p_barcode').focus();
                 // 담당자 드롭다운의 선택 값은 유지
-                document.getElementById('p_responsiblePerson').value = pResponsiblePerson;
+                document.getElementById('p_responsiblePerson').value = pResponsiblePersonValue;
             }
         });
         
@@ -782,35 +778,34 @@
         const stockUpdateForm = document.getElementById('stockUpdateForm');
         stockUpdateForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // ⭐️ 필수 입력 검증 강화 (대화상자 보장) ⭐️
-            if (!document.getElementById('u_fullLocation').value || 
-                !document.getElementById('u_barcode').value.trim() ||
-                !document.getElementById('u_batchNo').value.trim() ||
-                document.getElementById('u_currentQuantity').value === undefined || 
-                parseInt(document.getElementById('u_currentQuantity').value, 10) < 0 ||
-                !document.getElementById('u_responsiblePerson').value.trim()) // ⭐️ 담당자 필드 검증 추가 ⭐️
+            
+            // ⭐️ 필수 입력 검증 강화 ⭐️
+            const uFullLocationValue = document.getElementById('u_fullLocation').value.trim();
+            const uBarcodeValue = document.getElementById('u_barcode').value.trim();
+            const uBatchNoValue = document.getElementById('u_batchNo').value.trim();
+            const uCurrentQuantityValue = document.getElementById('u_currentQuantity').value;
+            const uResponsiblePersonValue = document.getElementById('u_responsiblePerson').value.trim();
+
+            if (!uFullLocationValue || !uBarcodeValue || !uBatchNoValue || 
+                uCurrentQuantityValue === undefined || parseInt(uCurrentQuantityValue, 10) < 0 || !uResponsiblePersonValue) 
             {
                 alert('🚨 필수 입력 항목을 모두 확인하고 다시 시도해주세요.\n(로케이션, 바코드, 배치번호, 최종 실사 수량은 0 이상, 담당자)');
                 return;
             }
             
-            const fullLocationValue = document.getElementById('u_fullLocation').value.trim();
-            const fullLocationParts = fullLocationValue.split('-'); 
-            
+            const fullLocationParts = uFullLocationValue.split('-'); 
             const rackType = fullLocationParts[0]; 
             const locationCode = fullLocationParts.slice(1).join('-');
-
-            const uResponsiblePerson = document.getElementById('u_responsiblePerson').value.trim();
             
             const data = {
-                barcode: document.getElementById('u_barcode').value.trim(),
-                batchNo: document.getElementById('u_batchNo').value.trim(),
+                barcode: uBarcodeValue,
+                batchNo: uBatchNoValue,
                 rackType: rackType,
                 location: locationCode, 
-                currentQuantity: document.getElementById('u_currentQuantity').value, 
+                currentQuantity: uCurrentQuantityValue, 
                 itemName: document.getElementById('u_itemName').value.trim(),
                 itemCode: document.getElementById('u_itemCode').value.trim(),
-                responsiblePerson: uResponsiblePerson, // ⭐️ 담당자 데이터 추가 ⭐️
+                responsiblePerson: uResponsiblePersonValue, 
                 action: "UPDATE_STOCK" 
             };
             
@@ -821,7 +816,7 @@
                 updateLocationField('update'); 
                 document.getElementById('u_barcode').focus();
                 // 담당자 드롭다운의 선택 값은 유지
-                document.getElementById('u_responsiblePerson').value = uResponsiblePerson;
+                document.getElementById('u_responsiblePerson').value = uResponsiblePersonValue;
             }
         });
 
@@ -831,16 +826,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
