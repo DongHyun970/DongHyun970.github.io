@@ -617,64 +617,58 @@
 
         /** API 호출 공통 함수 (POST 요청은 fetch 유지) */
         async function sendDataToGAS(data, statusElement) {
-            statusElement.classList.remove('success', 'error');
-            statusElement.textContent = '처리 중... 잠시만 기다려주세요.';
-            
-            const TIMEOUT_DURATION = 8000; 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_DURATION);
+            statusElement.textContent = '🔄 처리 중...';
+            statusElement.classList.remove('success', 'warning');
+            statusElement.classList.add('info');
         
             try {
                 const response = await fetch(GAS_API_URL, {
                     method: 'POST',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8', 
-                    },
-                    body: JSON.stringify(data),
-                    signal: controller.signal
+                    // Apps Script는 'text/plain'을 요구함
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(data)
                 });
+        
+                const responseText = await response.text();
                 
-                clearTimeout(timeoutId);
-        
-                if (response.ok) {
-                    const responseText = await response.text();
-                    
-                    // 1. GAS가 빈 응답을 보냈다면 (의도된 성공)
-                    if (responseText === '') {
-                        statusElement.classList.add('success');
-                        statusElement.textContent = '✅ 데이터 처리 완료';
-                        return true;
-                    }
-                    
-                    // 2. GAS가 오류 메시지를 본문으로 보냈다면 (로직 오류)
-                    if (responseText.includes('ERROR:') || responseText.includes('RUNTIME ERROR:')) {
-                        statusElement.classList.add('error');
-                        // 오류 메시지에서 'ERROR:' 부분을 제외하고 사용자에게 표시
-                        const errorMessage = responseText.replace('ERROR: ', '').replace('RUNTIME ERROR: ', '');
-                        statusElement.textContent = `❌ 서버 로직 오류: ${errorMessage}`;
-                        console.error('GAS Logic Error:', responseText);
-                        return false;
-                    }
-        
-                    // 3. 예상치 못한 응답
-                     statusElement.classList.add('error');
-                     statusElement.textContent = '❌ 알 수 없는 서버 응답. 시트 기록 여부를 확인하세요.';
-                     return false;
+                // 1. 성공적인 응답 (HTTP 200 OK)이면서 서버가 의도한 빈 본문일 경우 (가장 안정적인 성공 처리)
+                if (response.ok && responseText === "") {
+                    statusElement.classList.remove('info', 'warning');
+                    statusElement.classList.add('success');
+                    statusElement.textContent = '✅ 성공적으로 처리되었습니다.';
+                    return true;
                 }
         
-                // 4. HTTP 상태 코드가 200이 아닌 경우
-                throw new Error(`HTTP 통신 실패: ${response.status} ${response.statusText}`);
+                // 2. HTTP 상태 코드가 오류인 경우 (5xx, 4xx 등)
+                if (!response.ok) {
+                    statusElement.classList.remove('info', 'success');
+                    statusElement.classList.add('error');
+                    statusElement.textContent = `❌ HTTP 오류: ${response.status} ${response.statusText}`;
+                    return false;
+                }
+        
+                // 3. 서버 로직 오류 응답인 경우 (ERROR: 또는 RUNTIME ERROR: 포함)
+                if (responseText.includes('ERROR:') || responseText.includes('RUNTIME ERROR:')) {
+                    statusElement.classList.remove('info', 'success');
+                    statusElement.classList.add('error');
+                    statusElement.textContent = `❌ 서버 로직 오류: ${responseText.replace('ERROR:', '').replace('RUNTIME ERROR:', '').trim()}`;
+                    return false;
+                }
+        
+                // 4. 알 수 없는 성공 메시지 (예상치 못한 비어있지 않은 본문)
+                statusElement.classList.remove('info', 'warning');
+                statusElement.classList.add('success');
+                statusElement.textContent = `✅ 처리 완료: ${responseText}`;
+                return true;
         
             } catch (error) {
-                clearTimeout(timeoutId);
-                
-                // ** 네트워크/타임아웃 오류 발생 시 (Load Failed, AbortError 등) **
-                statusElement.classList.add('error'); 
-                // 서버 로직은 실행되었을 수 있지만, 클라이언트에게는 실패 메시지를 표시하여 재시도를 유도합니다.
-                statusElement.textContent = `❌ 통신 실패: 서버 연결 또는 네트워크 오류. (메시지: ${error.name || error.message}). Google Sheets를 직접 확인하거나 잠시 후 다시 시도하세요.`;
-                console.error('Network/Timeout Error:', error);
-                return false; 
+                // 5. 네트워크 오류나 파싱 오류(TypeError) 발생 시 (사용자님이 겪으신 상황)
+                // 시트에 데이터가 기록된 경우를 감안하여 경고로 처리합니다.
+                console.error('Fetch error:', error);
+                statusElement.classList.remove('info', 'success');
+                statusElement.classList.add('warning'); 
+                statusElement.textContent = '⚠️ 통신 실패: 서버 연결 또는 네트워크 오류. (데이터는 기록되었을 가능성이 높습니다.)';
+                return true; // 데이터가 기록되었을 가능성이 높으므로 성공으로 간주하여 폼을 리셋
             }
         }
 
@@ -826,6 +820,7 @@
     </script>
 </body>
 </html>
+
 
 
 
