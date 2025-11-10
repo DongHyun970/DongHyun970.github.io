@@ -1,4 +1,4 @@
-const WEB_APP_URL = "https://script.google.com/macros/s/여기에_웹앱_URL_붙여넣기/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzaFF1zzcXg21ACQ3LdvKyXKE7Trn4Ch5Ml0Hqff_msnUdIMl0sE29h0KjGWq9yGRY/exec";
 
 const codeReader = new ZXing.BrowserMultiFormatReader();
 const videoElement = document.getElementById('preview');
@@ -78,3 +78,4 @@ saveBtn.addEventListener('click', async () => {
 });
 
 startScanner();
+
