@@ -47,7 +47,7 @@
         </div>
         <div class="form-group">
             <label for="location">랙 로케이션:</label>
-            <input type="text" id="location" placeholder="랙 로케이션" required>
+            <input type="text" id="location" placeholder="랙 로케이션" required readonly>
         </div>
         <div class="form-group">
             <label for="quantity">수량 (입고):</label>
@@ -83,8 +83,7 @@
     </form>
     <div id="pickingStatusMessage"></div>
 
-        // --- index.html <script> 태그 내부 전체 코드 (수정됨) ---
-        
+    <script>
         // 🚨 중요: 여기에 1단계에서 복사한 **GAS 웹 앱 URL**을 붙여넣으세요.
         const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbx9JL4Pndfmn3G6JTEuYzXr0WKL-xEt8SxxiSTN4tieWO9Pjl--Sjrssx3SSSXlH93FKQ/exec'; 
         
@@ -128,7 +127,7 @@
         
         /** 스캐너 정지 */
         function stopScanner() {
-            if (html5QrcodeScanner && html5QrcodeScanner.isScanning) { // ⭐️ isScanning 오타 수정 적용
+            if (html5QrcodeScanner && html5QrcodeScanner.isScanning) { 
                 html5QrcodeScanner.stop().then(() => {
                     document.getElementById('reader').style.display = 'none';
                     html5QrcodeScanner = null;
@@ -149,7 +148,6 @@
             try {
                 const response = await fetch(GAS_API_URL, {
                     method: 'POST',
-                    // GAS가 JSON을 plain text로 받도록 설정
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(data)
                 });
@@ -219,12 +217,6 @@
                 document.getElementById('p_barcode').focus();
             }
         });
+    </script>
 </body>
 </html>
-
-
-
-
-
-
-
