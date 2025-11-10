@@ -1,4 +1,4 @@
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbysbl6_oXDzQmDrUtmhaDogyD6wsSlJ7BSw_0wTnlStbh2cBrYznEP1wTBAc3dUE2-VOA/exec"; // ⚠️ 이 URL을 새로 배포한 URL로 바꿔야 합니다.
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwr6WoArv3AyykLkKjbo5AVYkMo6ZLDUaciWlo2kyHX0tnfnV9w07_vjHcTAGmG8AYHpw/exec"; // ⚠️ 이 URL을 새로 배포한 URL로 바꿔야 합니다.
 
 // DOM 요소 맵핑
 const codeReader = new ZXing.BrowserMultiFormatReader();
@@ -160,7 +160,7 @@ saveBtn.addEventListener('click', async () => {
         }
     }
 
-    statusText.textContent = '저장 중...';
+statusText.textContent = '저장 중...';
 
     try {
         const res = await fetch(WEB_APP_URL, {
@@ -169,9 +169,16 @@ saveBtn.addEventListener('click', async () => {
             body: JSON.stringify(payload)
         });
         
+        // ⭐️⭐️ 핵심 수정: HTTP 오류 코드가 떴는지 확인 (403, 404 등) ⭐️⭐️
+        if (!res.ok) {
+            // 이 오류는 주로 403 Forbidden (권한) 문제일 때 발생합니다.
+            throw new Error(`Apps Script 요청 실패: HTTP ${res.status}. 배포 권한을 확인하세요.`);
+        }
+
+        // POST 요청의 응답은 텍스트로 받습니다.
         const result = await res.text();
         
-        if (result.startsWith('오류:')) {
+        if (result.startsWith('❌') || result.startsWith('오류:')) {
             statusText.textContent = `❌ 서버 처리 오류: ${result}`;
         } else {
             statusText.textContent = `✅ 저장 완료: ${result}`;
@@ -188,5 +195,6 @@ typeSelect.addEventListener('change', toggleLocationFields);
 
 // 초기 실행
 startScanner();
+
 
 
