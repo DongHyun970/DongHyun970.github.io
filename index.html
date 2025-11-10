@@ -3,118 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>물류 로케이션 & 재고 관리</title>
+    <title>스마트 재고 로케이션</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; line-height: 1.6; }
-        input, button, select { width: 100%; padding: 12px; margin-bottom: 12px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-size: 16px; }
-        button:hover { background-color: #0056b3; }
-        h1, h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 30px; }
-        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
-        .success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; padding: 10px; border-radius: 4px; }
-        .error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; padding: 10px; border-radius: 4px; }
-        /* 스캐너 영역 스타일 */
-        #reader { width: 100%; max-width: 400px; margin: 15px auto; border: 1px solid #ccc; }
-        .scanner-controls { text-align: center; margin-bottom: 20px; display: flex; justify-content: space-between; gap: 10px; }
-        .scanner-controls button { width: 100%; }
-        .form-group { margin-bottom: 15px; }
-        .action-button { background-color: #28a745; }
-        #pickingForm .action-button { background-color: #dc3545; }
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #28a745;
+            --danger-color: #dc3545;
+            --background-color: #f8f9fa;
+            --card-background: #ffffff;
+            --text-color: #343a40;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        body { 
+            font-family: 'Roboto', sans-serif; 
+            padding: 0; 
+            margin: 0; 
+            background-color: var(--background-color); 
+            color: var(--text-color);
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px;
+        }
+        h1 { 
+            font-size: 24px; 
+            text-align: center; 
+            color: var(--primary-color); 
+            margin-bottom: 20px;
+        }
+        h2 {
+            font-size: 18px;
+            color: var(--text-color);
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 5px;
+            margin-top: 20px;
+        }
+        /* 탭 스타일 */
+        .tab-controls {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        .tab-controls button {
+            flex-grow: 1;
+            padding: 15px;
+            border: none;
+            background-color: #e9ecef;
+            color: var(--text-color);
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .tab-controls button.active {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: bold;
+        }
+        /* 카드 스타일 */
+        .card {
+            background-color: var(--card-background);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        /* 폼 요소 */
+        input:not([type="radio"]), select, button[type="submit"] { 
+            width: 100%; 
+            padding: 12px; 
+            margin-bottom: 12px; 
+            box-sizing: border-box; 
+            border: 1px solid #ced4da; 
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .action-button { 
+            background-color: var(--secondary-color); 
+            color: white; 
+        }
+        .action-button:hover { 
+            background-color: #1e7e34; 
+        }
+        #pickingForm .action-button { 
+            background-color: var(--danger-color); 
+        }
+        #pickingForm .action-button:hover { 
+            background-color: #bd2130; 
+        }
+        /* 로케이션 입력 그룹 */
+        .location-group {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 12px;
+        }
+        .location-group input, .location-group select {
+            flex: 1;
+            text-align: center;
+        }
+        /* 스캐너 컨트롤 */
+        .scanner-controls { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 20px; 
+        }
+        .scanner-controls button {
+            flex: 1;
+            padding: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+        }
+        .scanner-controls button:hover {
+            background-color: #0056b3;
+        }
+        #reader { 
+            width: 100%; 
+            max-width: 400px; 
+            margin: 15px auto; 
+            border: 1px solid #ccc; 
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        /* 메시지 */
+        .success { color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 4px; margin-top: 15px; }
+        .error { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 4px; margin-top: 15px; }
+
+        /* 비활성화 필드 */
+        input[readonly] {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
-    <h1>📦 물류 로케이션 관리 시스템</h1>
-    <div class="scanner-controls">
-        <button onclick="startScanner('barcode')">상품 바코드 스캔</button>
-        <button onclick="startScanner('location')">로케이션 스캔</button>
-        <button onclick="stopScanner()">스캐너 끄기</button>
+    <div class="container">
+        <h1>스마트 재고 로케이션 시스템</h1>
+
+        <div class="tab-controls">
+            <button id="tabInbound" onclick="switchForm('inbound')" class="active">⬆️ 입고</button>
+            <button id="tabOutbound" onclick="switchForm('outbound')">⬇️ 출고</button>
+        </div>
+
+        <div id="scannerSection" class="card">
+            <h2>스캐너 컨트롤</h2>
+            <div class="scanner-controls">
+                <button onclick="startScanner('barcode')">상품 바코드 스캔</button>
+                <button onclick="startScanner('location')">로케이션 스캔</button>
+                <button onclick="stopScanner()">스캐너 끄기</button>
+            </div>
+            <div id="reader"></div>
+        </div>
+
+        <div id="inboundFormContainer" class="card">
+            <h2>입고 정보</h2>
+            <form id="locationForm">
+                
+                <div class="form-group">
+                    <label>랙 로케이션 (A-1-1-1):</label>
+                    <div class="location-group">
+                        <select id="rackType" required onchange="updateLocationField()">
+                            <option value="">랙</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                        </select>
+                        <input type="number" id="rackCol" placeholder="열" required min="1" oninput="updateLocationField()">
+                        <input type="number" id="rackFloor" placeholder="층" required min="1" oninput="updateLocationField()">
+                        <select id="rackSide" required onchange="updateLocationField()">
+                            <option value="">좌/우</option>
+                            <option value="1">1 (좌)</option>
+                            <option value="2">2 (우)</option>
+                        </select>
+                    </div>
+                    <input type="text" id="location" placeholder="A-1-1-1 형식으로 자동 입력됩니다" required readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="barcode">상품 바코드:</label>
+                    <input type="text" id="barcode" placeholder="스캔 또는 입력" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="itemName">상품명 / 아이템 코드:</label>
+                    <input type="text" id="itemName" placeholder="자동 기입 / 신규 등록 시 입력" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="batchNo">배치번호:</label>
+                    <input type="text" id="batchNo" placeholder="배치번호 입력/스캔" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="quantity">수량 (입고):</label>
+                    <input type="number" id="quantity" value="1" min="1" required>
+                </div>
+
+                <button type="submit" class="action-button">✅ 로케이션 지정 및 입고</button>
+            </form>
+            <div id="statusMessage"></div>
+        </div>
+
+        <div id="outboundFormContainer" class="card" style="display:none;">
+            <h2>출고 정보</h2>
+            <form id="pickingForm">
+                <div class="form-group">
+                    <label for="p_barcode">출고 상품 바코드:</label>
+                    <input type="text" id="p_barcode" placeholder="스캔 또는 입력" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="p_itemName">상품명 / 아이템 코드:</label>
+                    <input type="text" id="p_itemName" placeholder="자동 기입" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label for="p_batchNo">출고 배치번호:</label>
+                    <input type="text" id="p_batchNo" placeholder="출고 배치번호" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="p_location">출고 로케이션:</label>
+                    <input type="text" id="p_location" placeholder="출고 로케이션 (스캔 또는 입력)" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="p_quantity">수량 (출고):</label>
+                    <input type="number" id="p_quantity" value="1" min="1" required>
+                </div>
+
+                <button type="submit" class="action-button">🔴 재고 출고 처리</button>
+            </form>
+            <div id="pickingStatusMessage"></div>
+        </div>
+
     </div>
-    <div id="reader"></div> 
-    
-    <hr>
-    
-    <h2>⬆️ 입고 및 로케이션 지정</h2>
-    <form id="locationForm">
-        <div class="form-group">
-            <label for="barcode">상품 바코드:</label>
-            <input type="text" id="barcode" placeholder="상품 바코드" required readonly>
-        </div>
-        <div class="form-group">
-            <label for="batchNo">배치번호:</label>
-            <input type="text" id="batchNo" placeholder="배치번호 입력/스캔" required>
-        </div>
-        <div class="form-group">
-            <label for="location">랙 로케이션:</label>
-            <input type="text" id="location" placeholder="랙 로케이션" required readonly>
-        </div>
-        <div class="form-group">
-            <label for="quantity">수량 (입고):</label>
-            <input type="number" id="quantity" value="1" min="1" required>
-        </div>
-
-        <button type="submit" class="action-button">✅ 로케이션 지정 및 입고</button>
-    </form>
-    <div id="statusMessage"></div>
-    
-    <hr>
-    
-    <h2>⬇️ 재고 출고 (Picking)</h2>
-    <form id="pickingForm">
-        <div class="form-group">
-            <label for="p_barcode">출고 상품 바코드:</label>
-            <input type="text" id="p_barcode" placeholder="출고 상품 바코드" required>
-        </div>
-        <div class="form-group">
-            <label for="p_batchNo">출고 배치번호:</label>
-            <input type="text" id="p_batchNo" placeholder="출고 배치번호" required>
-        </div>
-        <div class="form-group">
-            <label for="p_location">출고 로케이션:</label>
-            <input type="text" id="p_location" placeholder="출고 로케이션" required>
-        </div>
-        <div class="form-group">
-            <label for="p_quantity">수량 (출고):</label>
-            <input type="number" id="p_quantity" value="1" min="1" required>
-        </div>
-
-        <button type="submit" class="action-button">🔴 재고 출고 처리</button>
-    </form>
-    <div id="pickingStatusMessage"></div>
 
     <script>
-        // 🚨 중요: 여기에 1단계에서 복사한 **GAS 웹 앱 URL**을 붙여넣으세요.
-        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbx9JL4Pndfmn3G6JTEuYzXr0WKL-xEt8SxxiSTN4tieWO9Pjl--Sjrssx3SSSXlH93FKQ/exec'; 
+        // 🚨 중요: 여기에 GAS 웹 앱 URL을 붙여넣으세요.
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxtJYHRZ_n-jrzynykYYuvixDSs0w1hg2mlqboO414kSPDTZEXFh_Qi-8aagRkVs6oLng/exec'; 
         
+        // **********************************************
+        // 1. 상태 변수 및 유틸리티
+        // **********************************************
+
         let html5QrcodeScanner;
-        let currentScanTarget = '';
-        
+        let currentScanTarget = ''; // 'barcode' 또는 'location'
+
+        const statusMessage = document.getElementById('statusMessage');
+        const pickingStatusMessage = document.getElementById('pickingStatusMessage');
+
+        // **********************************************
+        // 2. 로케이션 필드 관리
+        // **********************************************
+
+        /** 로케이션 그룹 필드 값들을 합쳐 최종 로케이션 필드에 반영합니다. */
+        function updateLocationField() {
+            const rackType = document.getElementById('rackType').value;
+            const rackCol = document.getElementById('rackCol').value;
+            const rackFloor = document.getElementById('rackFloor').value;
+            const rackSide = document.getElementById('rackSide').value;
+            
+            const locationField = document.getElementById('location');
+
+            if (rackType && rackCol && rackFloor && rackSide) {
+                locationField.value = `${rackType}-${rackCol}-${rackFloor}-${rackSide}`;
+            } else {
+                locationField.value = ''; // 필수가 아닌 경우 비워둠
+            }
+        }
+
+        // **********************************************
+        // 3. 스캐너 및 바코드 자동 완성
+        // **********************************************
+
         /** 바코드 스캔 성공 시 호출됩니다. */
         function onScanSuccess(decodedText) {
+            stopScanner();
+            
             if (currentScanTarget === 'barcode') {
-                // 입고/출고 폼의 상품 바코드 필드 모두 채우기
                 document.getElementById('barcode').value = decodedText;
                 document.getElementById('p_barcode').value = decodedText;
-                document.getElementById('batchNo').focus(); // 상품 스캔 후 배치번호로 포커스 이동 (입고 폼 기준)
+                
+                // 바코드 스캔 후 상품 정보 자동 완성 시도
+                fetchProductInfo(decodedText); 
+                
+                // 현재 활성화된 폼에 따라 포커스 이동
+                const activeForm = document.getElementById('tabInbound').classList.contains('active') ? 'inbound' : 'outbound';
+                if (activeForm === 'inbound') {
+                    document.getElementById('batchNo').focus();
+                } else {
+                    document.getElementById('p_batchNo').focus();
+                }
+
             } else if (currentScanTarget === 'location') {
-                // 입고/출고 폼의 로케이션 필드 모두 채우기
-                document.getElementById('location').value = decodedText;
+                // 로케이션 스캔 시 로케이션 그룹 필드 채우기 (로케이션 필드는 입고 폼에만 필요)
                 document.getElementById('p_location').value = decodedText;
-                document.getElementById('quantity').focus(); // 로케이션 스캔 후 수량 입력으로 포커스 이동 (입고 폼 기준)
+                
+                // 로케이션 코드를 분리하여 입고 폼 필드 채우기 (A-1-1-1 형식 가정)
+                const parts = decodedText.split('-');
+                if(parts.length === 4) {
+                    document.getElementById('rackType').value = parts[0];
+                    document.getElementById('rackCol').value = parts[1];
+                    document.getElementById('rackFloor').value = parts[2];
+                    document.getElementById('rackSide').value = parts[3];
+                    updateLocationField(); // 최종 필드 업데이트
+                } else {
+                    // 출고 폼의 경우 p_location만 채움
+                    document.getElementById('location').value = decodedText;
+                }
+                
+                // 입고 폼 기준으로 다음 필드인 수량으로 포커스 이동
+                document.getElementById('quantity').focus(); 
             }
-            
-            stopScanner();
         }
         
-        /** 스캐너 시작 */
+        /** 스캐너 시작/정지 로직 (이전 코드 유지) */
         function startScanner(target) {
             currentScanTarget = target;
-            stopScanner(); // 기존 스캐너가 있다면 정지
-            
+            stopScanner(); 
             html5QrcodeScanner = new Html5Qrcode("reader");
             html5QrcodeScanner.start(
-                { facingMode: "environment" }, // 후면 카메라 사용 시도
+                { facingMode: "environment" }, 
                 { fps: 10, qrbox: { width: 250, height: 250 } },
                 onScanSuccess,
                 (errorMessage) => { /* 스캔 에러 무시 */ }
@@ -125,7 +348,6 @@
             document.getElementById('reader').scrollIntoView({ behavior: 'smooth' });
         }
         
-        /** 스캐너 정지 */
         function stopScanner() {
             if (html5QrcodeScanner && html5QrcodeScanner.isScanning) { 
                 html5QrcodeScanner.stop().then(() => {
@@ -139,8 +361,66 @@
                  html5QrcodeScanner = null;
             }
         }
-        
-        /** API 호출 공통 함수 */
+
+        /** 상품 정보를 GAS로부터 가져오는 함수 (GET 요청 필요) */
+        async function fetchProductInfo(barcode) {
+            // ⭐ 이 기능은 GAS에 doGet(e) 함수를 통해 바코드에 해당하는 상품명을 조회하는
+            // API 로직이 추가되어야 동작합니다. (아래 4단계 GAS 수정 필요)
+            try {
+                // GET 요청으로 상품 정보 조회 (GAS 쿼리 파라미터 사용)
+                const url = `${GAS_API_URL}?action=GET_ITEM&barcode=${barcode}`;
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (result.success && result.item) {
+                    document.getElementById('itemName').value = result.item.itemName;
+                    document.getElementById('p_itemName').value = result.item.itemName;
+                } else {
+                    // 상품 정보 없음 -> 신규 등록 유도
+                    document.getElementById('itemName').value = 'NEW ITEM - Enter Name';
+                    document.getElementById('p_itemName').value = 'NEW ITEM';
+                    alert('상품 정보가 마스터에 없습니다. 입고 시 상품명을 입력하면 신규 등록됩니다.');
+                }
+            } catch (error) {
+                console.error('상품 정보 조회 오류:', error);
+                // 통신 오류 발생 시 수동 입력 유도
+                document.getElementById('itemName').value = '';
+                document.getElementById('p_itemName').value = '';
+            }
+        }
+
+        // **********************************************
+        // 4. 동적 폼 전환
+        // **********************************************
+
+        /** 입고/출고 폼 전환 */
+        function switchForm(type) {
+            const inboundContainer = document.getElementById('inboundFormContainer');
+            const outboundContainer = document.getElementById('outboundFormContainer');
+            const tabInbound = document.getElementById('tabInbound');
+            const tabOutbound = document.getElementById('tabOutbound');
+
+            if (type === 'inbound') {
+                inboundContainer.style.display = 'block';
+                outboundContainer.style.display = 'none';
+                tabInbound.classList.add('active');
+                tabOutbound.classList.remove('active');
+            } else {
+                inboundContainer.style.display = 'none';
+                outboundContainer.style.display = 'block';
+                tabInbound.classList.remove('active');
+                tabOutbound.classList.add('active');
+            }
+            // 메시지 초기화
+            statusMessage.innerHTML = '';
+            pickingStatusMessage.innerHTML = '';
+        }
+
+        // **********************************************
+        // 5. API 통신 및 폼 제출
+        // **********************************************
+
+        /** API 호출 공통 함수 (이전 코드 유지) */
         async function sendDataToGAS(data, statusElement) {
             statusElement.innerHTML = '처리 중...';
             statusElement.className = '';
@@ -153,7 +433,7 @@
                 });
                 
                 const result = await response.json();
-        
+
                 if (result.success) {
                     statusElement.innerHTML = `SUCCESS: ${result.message}`;
                     statusElement.className = 'success';
@@ -169,12 +449,10 @@
                 return false;
             }
         }
-        
+
         // --- 폼 이벤트 리스너 ---
         const locationForm = document.getElementById('locationForm');
         const pickingForm = document.getElementById('pickingForm');
-        const statusMessage = document.getElementById('statusMessage');
-        const pickingStatusMessage = document.getElementById('pickingStatusMessage');
         
         // 1. 입고/지정 폼 제출
         locationForm.addEventListener('submit', async (e) => {
@@ -182,8 +460,9 @@
             const data = {
                 barcode: document.getElementById('barcode').value.trim(),
                 batchNo: document.getElementById('batchNo').value.trim(),
-                location: document.getElementById('location').value.trim(),
+                location: document.getElementById('location').value.trim(), // 자동 완성된 최종 로케이션
                 quantity: parseInt(document.getElementById('quantity').value, 10),
+                itemName: document.getElementById('itemName').value.trim(), // 신규 등록을 위해 itemName 전송
                 action: "IN_LOC"
             };
             
@@ -195,20 +474,21 @@
                 document.getElementById('barcode').focus();
             }
         });
-        
+
         // 2. 출고 폼 제출
         pickingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const qtyToSubtract = parseInt(document.getElementById('p_quantity').value, 10) * -1;
-        
+            const qtyToSubtract = parseInt(document.getElementById('p_quantity').value, 10) * -1; // 음수 수량
+
             const data = {
                 barcode: document.getElementById('p_barcode').value.trim(),
                 batchNo: document.getElementById('p_batchNo').value.trim(),
                 location: document.getElementById('p_location').value.trim(),
-                quantity: qtyToSubtract,
+                quantity: qtyToSubtract, 
+                itemName: document.getElementById('p_itemName').value.trim(), // 현재는 사용되지 않으나 구조 유지를 위해 전송
                 action: "OUT_PICK"
             };
-        
+
             const success = await sendDataToGAS(data, pickingStatusMessage);
             if (success) {
                 // 입력 필드 초기화
@@ -216,6 +496,16 @@
                 document.getElementById('p_quantity').value = '1';
                 document.getElementById('p_barcode').focus();
             }
+        });
+
+        // 초기 로드 시 입고 폼 활성화
+        document.addEventListener('DOMContentLoaded', () => {
+            switchForm('inbound');
+            // 로케이션 필드 리스너 연결
+            document.querySelectorAll('#locationForm .location-group select, #locationForm .location-group input[type="number"]').forEach(element => {
+                element.addEventListener('change', updateLocationField);
+                element.addEventListener('input', updateLocationField);
+            });
         });
     </script>
 </body>
