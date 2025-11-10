@@ -83,141 +83,145 @@
     </form>
     <div id="pickingStatusMessage"></div>
 
-    <script>
-        // 🚨 중요: 여기에 1단계에서 복사한 **GAS 웹 앱 URL**을 붙여넣으세요.
-        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbx9JL4Pndfmn3G6JTEuYzXr0WKL-xEt8SxxiSTN4tieWO9Pjl--Sjrssx3SSSXlH93FKQ/exec'; 
-
-        let html5QrcodeScanner;
-        let currentScanTarget = ''; // 'barcode' 또는 'location'
-
-        /** 바코드 스캔 성공 시 호출됩니다. */
-        function onScanSuccess(decodedText) {
-            if (currentScanTarget === 'barcode') {
-                document.getElementById('barcode').value = decodedText;
-                document.getElementById('p_barcode').value = decodedText;
-                document.getElementById('batchNo').focus(); // 상품 스캔 후 배치번호로 포커스 이동
-            } else if (currentScanTarget === 'location') {
-                document.getElementById('location').value = decodedText;
-                document.getElementById('p_location').value = decodedText;
-                document.getElementById('quantity').focus(); // 로케이션 스캔 후 수량 입력으로 포커스 이동
-            }
-            
-            stopScanner();
-            // ⭐️ 이전에 있던 document.getElementById('batchNo').focus(); 는 각 if 블록 내부로 이동했습니다.
-        }
-        /** 스캐너 시작 */
-        function startScanner(target) {
-            currentScanTarget = target;
-            stopScanner(); // 기존 스캐너가 있다면 정지
-            
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            html5QrcodeScanner.start(
-                { facingMode: "environment" }, // 후면 카메라 사용 시도
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                onScanSuccess,
-                (errorMessage) => { /* 스캔 에러 무시 */ }
-            ).catch((err) => {
-                alert(`카메라 접근 오류: ${err}. HTTPS 환경을 확인하세요.`);
-            });
-            document.getElementById('reader').style.display = 'block';
-            document.getElementById('reader').scrollIntoView({ behavior: 'smooth' });
+    // --- index.html <script> 태그 내부 전체 코드 (수정됨) ---
+    
+    // 🚨 중요: 여기에 1단계에서 복사한 **GAS 웹 앱 URL**을 붙여넣으세요.
+    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbx9JL4Pndfmn3G6JTEuYzXr0WKL-xEt8SxxiSTN4tieWO9Pjl--Sjrssx3SSSXlH93FKQ/exec'; 
+    
+    let html5QrcodeScanner;
+    let currentScanTarget = '';
+    
+    /** 바코드 스캔 성공 시 호출됩니다. */
+    function onScanSuccess(decodedText) {
+        if (currentScanTarget === 'barcode') {
+            // 입고/출고 폼의 상품 바코드 필드 모두 채우기
+            document.getElementById('barcode').value = decodedText;
+            document.getElementById('p_barcode').value = decodedText;
+            document.getElementById('batchNo').focus(); // 상품 스캔 후 배치번호로 포커스 이동 (입고 폼 기준)
+        } else if (currentScanTarget === 'location') {
+            // 입고/출고 폼의 로케이션 필드 모두 채우기
+            document.getElementById('location').value = decodedText;
+            document.getElementById('p_location').value = decodedText;
+            document.getElementById('quantity').focus(); // 로케이션 스캔 후 수량 입력으로 포커스 이동 (입고 폼 기준)
         }
         
-        /** 스캐너 정지 */
-        function stopScanner() {
-            if (html5QrcodeScanner && html5QrcodeScanner.isscanning) {
-                html5QrcodeScanner.stop().then(() => {
-                    document.getElementById('reader').style.display = 'none';
-                    html5QrcodeScanner = null;
-                }).catch((err) => {
-                    console.error("Failed to stop scanning.", err);
-                });
-            } else if (html5QrcodeScanner) {
-                 document.getElementById('reader').style.display = 'none';
-                 html5QrcodeScanner = null;
-            }
+        stopScanner();
+    }
+    
+    /** 스캐너 시작 */
+    function startScanner(target) {
+        currentScanTarget = target;
+        stopScanner(); // 기존 스캐너가 있다면 정지
+        
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        html5QrcodeScanner.start(
+            { facingMode: "environment" }, // 후면 카메라 사용 시도
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            onScanSuccess,
+            (errorMessage) => { /* 스캔 에러 무시 */ }
+        ).catch((err) => {
+            alert(`카메라 접근 오류: ${err}. HTTPS 환경을 확인하세요.`);
+        });
+        document.getElementById('reader').style.display = 'block';
+        document.getElementById('reader').scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    /** 스캐너 정지 */
+    function stopScanner() {
+        if (html5QrcodeScanner && html5QrcodeScanner.isScanning) { // ⭐️ isScanning 오타 수정 적용
+            html5QrcodeScanner.stop().then(() => {
+                document.getElementById('reader').style.display = 'none';
+                html5QrcodeScanner = null;
+            }).catch((err) => {
+                console.error("Failed to stop scanning.", err);
+            });
+        } else if (html5QrcodeScanner) {
+             document.getElementById('reader').style.display = 'none';
+             html5QrcodeScanner = null;
         }
-
-        /** API 호출 공통 함수 */
-        async function sendDataToGAS(data, statusElement) {
-            statusElement.innerHTML = '처리 중...';
-            statusElement.className = '';
+    }
+    
+    /** API 호출 공통 함수 */
+    async function sendDataToGAS(data, statusElement) {
+        statusElement.innerHTML = '처리 중...';
+        statusElement.className = '';
+        
+        try {
+            const response = await fetch(GAS_API_URL, {
+                method: 'POST',
+                // GAS가 JSON을 plain text로 받도록 설정
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(data)
+            });
             
-            try {
-                const response = await fetch(GAS_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-
-                if (result.success) {
-                    statusElement.innerHTML = `SUCCESS: ${result.message}`;
-                    statusElement.className = 'success';
-                    return true;
-                } else {
-                    statusElement.innerHTML = `ERROR: ${result.message}`;
-                    statusElement.className = 'error';
-                    return false;
-                }
-            } catch (error) {
-                statusElement.innerHTML = `통신 실패: 서버 연결 또는 네트워크 오류 (${error.message})`;
+            const result = await response.json();
+    
+            if (result.success) {
+                statusElement.innerHTML = `SUCCESS: ${result.message}`;
+                statusElement.className = 'success';
+                return true;
+            } else {
+                statusElement.innerHTML = `ERROR: ${result.message}`;
                 statusElement.className = 'error';
                 return false;
             }
+        } catch (error) {
+            statusElement.innerHTML = `통신 실패: 서버 연결 또는 네트워크 오류 (${error.message})`;
+            statusElement.className = 'error';
+            return false;
         }
-
-        // --- 폼 이벤트 리스너 ---
-        const locationForm = document.getElementById('locationForm');
-        const pickingForm = document.getElementById('pickingForm');
-        const statusMessage = document.getElementById('statusMessage');
-        const pickingStatusMessage = document.getElementById('pickingStatusMessage');
-
-        // 1. 입고/지정 폼 제출
-        locationForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                barcode: document.getElementById('barcode').value.trim(),
-                batchNo: document.getElementById('batchNo').value.trim(),
-                location: document.getElementById('location').value.trim(),
-                quantity: parseInt(document.getElementById('quantity').value, 10),
-                action: "IN_LOC"
-            };
-            
-            const success = await sendDataToGAS(data, statusMessage);
-            if (success) {
-                // 입력 필드 초기화
-                locationForm.reset();
-                document.getElementById('quantity').value = '1';
-                document.getElementById('barcode').focus();
-            }
-        });
-
-        // 2. 출고 폼 제출
-        pickingForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const qtyToSubtract = parseInt(document.getElementById('p_quantity').value, 10) * -1; // 핵심: 수량을 음수로 변환
-
-            const data = {
-                barcode: document.getElementById('p_barcode').value.trim(),
-                batchNo: document.getElementById('p_batchNo').value.trim(),
-                location: document.getElementById('p_location').value.trim(),
-                quantity: qtyToSubtract, // 음수 수량 전송
-                action: "OUT_PICK"
-            };
-
-            const success = await sendDataToGAS(data, pickingStatusMessage);
-            if (success) {
-                // 입력 필드 초기화
-                pickingForm.reset();
-                document.getElementById('p_quantity').value = '1';
-                document.getElementById('p_barcode').focus();
-            }
-        });
-    </script>
+    }
+    
+    // --- 폼 이벤트 리스너 ---
+    const locationForm = document.getElementById('locationForm');
+    const pickingForm = document.getElementById('pickingForm');
+    const statusMessage = document.getElementById('statusMessage');
+    const pickingStatusMessage = document.getElementById('pickingStatusMessage');
+    
+    // 1. 입고/지정 폼 제출
+    locationForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = {
+            barcode: document.getElementById('barcode').value.trim(),
+            batchNo: document.getElementById('batchNo').value.trim(),
+            location: document.getElementById('location').value.trim(),
+            quantity: parseInt(document.getElementById('quantity').value, 10),
+            action: "IN_LOC"
+        };
+        
+        const success = await sendDataToGAS(data, statusMessage);
+        if (success) {
+            // 입력 필드 초기화
+            locationForm.reset();
+            document.getElementById('quantity').value = '1';
+            document.getElementById('barcode').focus();
+        }
+    });
+    
+    // 2. 출고 폼 제출
+    pickingForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const qtyToSubtract = parseInt(document.getElementById('p_quantity').value, 10) * -1;
+    
+        const data = {
+            barcode: document.getElementById('p_barcode').value.trim(),
+            batchNo: document.getElementById('p_batchNo').value.trim(),
+            location: document.getElementById('p_location').value.trim(),
+            quantity: qtyToSubtract,
+            action: "OUT_PICK"
+        };
+    
+        const success = await sendDataToGAS(data, pickingStatusMessage);
+        if (success) {
+            // 입력 필드 초기화
+            pickingForm.reset();
+            document.getElementById('p_quantity').value = '1';
+            document.getElementById('p_barcode').focus();
+        }
+    });
 </body>
 </html>
+
 
 
 
