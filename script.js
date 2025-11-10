@@ -1,4 +1,4 @@
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyqD-UopesxjUaQfg0k6JmXynjPCoNwMcTLxbFM0kyBnjtTxhwDWY7wx9irZp0uVPoBUQ/exec"; // ⚠️ 이 URL을 새로 배포한 URL로 바꿔야 합니다.
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbysbl6_oXDzQmDrUtmhaDogyD6wsSlJ7BSw_0wTnlStbh2cBrYznEP1wTBAc3dUE2-VOA/exec"; // ⚠️ 이 URL을 새로 배포한 URL로 바꿔야 합니다.
 
 // DOM 요소 맵핑
 const codeReader = new ZXing.BrowserMultiFormatReader();
@@ -188,4 +188,5 @@ typeSelect.addEventListener('change', toggleLocationFields);
 
 // 초기 실행
 startScanner();
+
 
