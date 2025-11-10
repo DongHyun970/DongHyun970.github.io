@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>바코드 입출고 관리</title>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script defer src="script.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 10px; }
+    video { width: 100%; max-width: 500px; border: 2px solid #ccc; border-radius: 6px; }
+    input, select, button { margin-top: 10px; width: 90%; max-width: 400px; padding: 10px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h2>📦 바코드 입출고 관리</h2>
+
+  <video id="preview"></video>
+
+  <div>
+    <label>바코드</label><br>
+    <input id="barcode" readonly placeholder="바코드가 자동 인식됩니다.">
+  </div>
+
+  <div>
+    <label>수량</label><br>
+    <input id="quantity" type="number" value="1" min="1">
+  </div>
+
+  <div>
+    <label>위치</label><br>
+    <input id="location" type="text" placeholder="예: A-01">
+  </div>
+
+  <div>
+    <label>입출고 구분</label><br>
+    <select id="inout">
+      <option value="입고">입고</option>
+      <option value="출고">출고</option>
+    </select>
+  </div>
+
+  <button id="saveBtn">저장</button>
+
+  <p id="status"></p>
+</body>
+</html>
