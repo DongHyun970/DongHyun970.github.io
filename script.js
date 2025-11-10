@@ -1,4 +1,4 @@
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzaFF1zzcXg21ACQ3LdvKyXKE7Trn4Ch5Ml0Hqff_msnUdIMl0sE29h0KjGWq9yGRY/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzaFF1zzcXg21ACQ3LdvKyXKE7Trn4Ch5Ml0Hqff_msnUdIMl0sE29h0KjGWq9yGRY/exec"; // ⚠️ 이 URL을 새로 배포한 URL로 바꿔야 합니다.
 
 // DOM 요소 맵핑
 const codeReader = new ZXing.BrowserMultiFormatReader();
@@ -35,6 +35,7 @@ function clearInputs() {
     sideSelect.value = '';
     managerSelect.value = '';
     typeSelect.value = '입고'; // 기본값 설정
+    toggleLocationFields(); // 로케이션 필드 상태 초기화
 }
 
 /** 입출고 타입에 따라 로케이션 필드 활성화/비활성화 */
@@ -44,66 +45,62 @@ function toggleLocationFields() {
     columnInput.disabled = !isIncoming;
     levelInput.disabled = !isIncoming;
     sideSelect.disabled = !isIncoming;
-    
-    // 출고 시 로케이션 정보는 조회된 데이터로 보여주는 게 일반적.
-    // 수동 입력을 막기 위해 비활성화합니다.
 }
 
 /** 바코드 스캐너를 시작합니다. */
 async function startScanner() {
     clearInputs();
-    toggleLocationFields(); // 초기 설정
     
     try {
         const devices = await codeReader.listVideoInputDevices();
         const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0];
         
-        // 1초 간격으로 스캔하도록 최적화 (실제 사용 환경에 따라 조정 필요)
         await codeReader.decodeFromVideoDevice(backCamera.deviceId, videoElement, (result, err) => {
             if (result) {
                 const scannedBarcode = result.text;
-                // 중복 스캔 방지 (이전 스캔과 동일할 경우 무시)
                 if (barcodeInput.value !== scannedBarcode) {
                     barcodeInput.value = scannedBarcode;
                     loadProductInfo(scannedBarcode);
                 }
             }
-        }, { delay: 500 }); // 0.5초 딜레이 추가
+        }, { delay: 500 });
         
     } catch (e) {
         statusText.textContent = '카메라 불러오기 실패: ' + e.message;
     }
 }
 
+/** 바코드를 이용해 상품 정보를 스프레드시트에서 조회합니다. */
 async function loadProductInfo(barcode) {
     productInfo.innerHTML = '불러오는 중...';
-    // 로케이션 필드 초기화 (조회 데이터로 덮어쓸 예정)
+    // 로케이션 필드 초기화
     rackSelect.value = ''; columnInput.value = ''; levelInput.value = ''; sideSelect.value = ''; 
 
     try {
         const res = await fetch(`${WEB_APP_URL}?barcode=${barcode}`);
         
         if (!res.ok) {
-            // 403, 404 등의 HTTP 오류를 정확히 표시
+            // HTTP 403 (권한 없음) 또는 404 (URL 오류)를 여기서 정확히 잡아냅니다.
             throw new Error(`Apps Script 요청 실패: HTTP ${res.status}`);
         }
         
-        // 응답을 텍스트로 받은 후 수동으로 JSON 파싱 시도
+        // ⭐️⭐️ 핵심 수정: JSON 파싱 오류 회피를 위해 텍스트로 받은 후 수동으로 JSON 파싱 ⭐️⭐️
         const textData = await res.text();
         let data;
-        
         try {
             data = JSON.parse(textData); 
         } catch (e) {
-            // JSON 파싱 실패 시: Apps Script에서 유효하지 않은 응답을 보냈거나(예: HTML 오류 페이지), 
-            // 응답이 잘렸을 가능성.
-            console.error("JSON 파싱 오류:", e, "수신 텍스트:", textData);
-            throw new Error(`데이터 파싱 오류: 응답 형식이 유효한 JSON이 아닙니다.`);
+            console.error("JSON 파싱 오류:", e, "수신 텍스트:", textData.substring(0, 100));
+            throw new Error(`데이터 파싱 오류: 서버 응답 형식이 유효하지 않습니다.`);
         }
         
-        // ⭐️⭐️ 신규 등록 로직 (조회 성공 및 데이터 없음) ⭐️⭐️
+        // Apps Script에서 반환한 JSON 객체에 error 필드가 있다면 (시트 없음 등)
+        if (data && data.error) {
+            throw new Error(`Apps Script 오류: ${data.error}`);
+        }
+        
         if (data.length > 0) {
-            // ... (기존 상품 발견 로직)
+            // 기존 상품 발견 로직
             const last = data[data.length - 1]; 
             
             productInput.value = last[1];
@@ -122,16 +119,14 @@ async function loadProductInfo(barcode) {
                 최근 위치: ${last[4]}-${last[5]}-${last[6]}-${last[7]}
             `;
         } else {
-            // 이 부분이 정상적으로 실행되면, 연결은 성공했고 바코드만 없는 경우임
+            // ⭐️⭐️ 연결은 성공했고, 바코드만 없는 경우: 신규 등록 유도 ⭐️⭐️
             productInfo.innerHTML = '⚠️ **신규 상품입니다.** 상품명과 코드를 입력하고 위치를 지정하세요.';
             productInput.value = '';
             itemCodeInput.value = '';
         }
     } catch (err) {
-        // 연결 실패 또는 HTTP/파싱 오류
-        statusText.textContent = `⚠️ 오류: ${err.message}`;
-        productInfo.innerHTML = '❌ **조회 실패: Apps Script 연결 또는 처리 문제**';
-        console.error("최종 연결/처리 오류:", err);
+        productInfo.innerHTML = '❌ 조회 실패: ' + err.message;
+        statusText.textContent = '⚠️ 연결 오류: ' + err.message;
     }
 }
 
@@ -145,7 +140,6 @@ saveBtn.addEventListener('click', async () => {
         batch: batchInput.value,
         qty: qtyInput.value,
         manager: managerSelect.value,
-        // 로케이션 정보
         rack: rackSelect.value,
         column: columnInput.value,
         level: levelInput.value,
@@ -175,12 +169,14 @@ saveBtn.addEventListener('click', async () => {
             body: JSON.stringify(payload)
         });
         
-        // POST 요청의 응답은 텍스트로 받습니다.
         const result = await res.text();
-        statusText.textContent = `✅ 저장 완료: ${result}`;
         
-        // 저장 성공 후 입력 필드 초기화
-        clearInputs();
+        if (result.startsWith('오류:')) {
+            statusText.textContent = `❌ 서버 처리 오류: ${result}`;
+        } else {
+            statusText.textContent = `✅ 저장 완료: ${result}`;
+            clearInputs();
+        }
         
     } catch (e) {
         statusText.textContent = '⚠️ 오류: Apps Script에 연결할 수 없습니다. ' + e.message;
@@ -192,5 +188,3 @@ typeSelect.addEventListener('change', toggleLocationFields);
 
 // 초기 실행
 startScanner();
-
-
