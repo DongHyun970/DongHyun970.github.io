@@ -84,12 +84,23 @@ async function loadProductInfo(barcode) {
     try {
         const res = await fetch(`${WEB_APP_URL}?barcode=${barcode}`);
         
-        // HTTP 에러 처리 강화
         if (!res.ok) {
             throw new Error(`Apps Script 요청 실패: HTTP ${res.status}`);
         }
         
-        const data = await res.json();
+        // ⭐️⭐️ 핵심 수정: 응답을 텍스트로 받은 후 수동으로 JSON 파싱 ⭐️⭐️
+        const textData = await res.text();
+        let data;
+        try {
+            // Apps Script에서 보낸 JSON 문자열을 수동으로 파싱
+            data = JSON.parse(textData); 
+        } catch (e) {
+            // JSON 파싱 실패 시, Apps Script 설정 오류 또는 잘못된 응답 데이터일 가능성 높음
+            productInfo.innerHTML = '❌ 데이터 파싱 실패';
+            // 디버깅을 위해 에러를 콘솔에 출력하는 것이 좋습니다.
+            console.error("JSON 파싱 오류:", e, "수신 텍스트:", textData);
+            return;
+        }
         
         if (data.length > 0) {
             // 가장 최근의 재고 정보를 표시합니다.
@@ -98,8 +109,6 @@ async function loadProductInfo(barcode) {
             productInput.value = last[1];
             itemCodeInput.value = last[2];
             
-            // 로케이션 정보는 조회된 정보로 필드를 채웁니다 (출고 시 편리).
-            // 입고 시에는 사용자가 새 위치로 변경하거나 유지할 수 있습니다.
             rackSelect.value = last[4];
             columnInput.value = last[5];
             levelInput.value = last[6];
@@ -178,3 +187,4 @@ typeSelect.addEventListener('change', toggleLocationFields);
 
 // 초기 실행
 startScanner();
+
