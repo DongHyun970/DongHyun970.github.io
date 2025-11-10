@@ -95,16 +95,16 @@
             if (currentScanTarget === 'barcode') {
                 document.getElementById('barcode').value = decodedText;
                 document.getElementById('p_barcode').value = decodedText;
+                document.getElementById('batchNo').focus(); // 상품 스캔 후 배치번호로 포커스 이동
             } else if (currentScanTarget === 'location') {
                 document.getElementById('location').value = decodedText;
                 document.getElementById('p_location').value = decodedText;
+                document.getElementById('quantity').focus(); // 로케이션 스캔 후 수량 입력으로 포커스 이동
             }
             
-            // 스캔이 완료되면 스캐너를 정지하고 포커스를 다음 입력 필드로 이동 (옵션)
             stopScanner();
-            document.getElementById('batchNo').focus(); 
+            // ⭐️ 이전에 있던 document.getElementById('batchNo').focus(); 는 각 if 블록 내부로 이동했습니다.
         }
-
         /** 스캐너 시작 */
         function startScanner(target) {
             currentScanTarget = target;
@@ -218,6 +218,7 @@
     </script>
 </body>
 </html>
+
 
 
 
