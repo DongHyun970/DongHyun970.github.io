@@ -369,7 +369,7 @@
 
         // 입/출고 POST 요청을 위한 GAS URL 
         // 🚨🚨🚨 GAS 웹 앱 재배포 후 반드시 최신 URL로 업데이트해야 합니다. 🚨🚨🚨
-        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw5YjSe7feNeWJURmEpp0c82_Z_40LUCd_UjXwScOtXXaIC1KRDH7ETr4P3CrlXAZ14iw/exec'; 
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxqLPfOD30OPbLZL6ATHmIy6PhWdMGsdDnkcK33YHmYcTYjBt-x5nPDDMLzpNgwuTo0Tg/exec'; 
         
         // **********************************************
         // 1. 상태 변수 및 유틸리티
@@ -616,54 +616,72 @@
         // **********************************************
 
         /** API 호출 공통 함수 (POST 요청은 fetch 유지) */
+        // --- 헬퍼 함수 ---
         async function sendDataToGAS(data, statusElement) {
-            statusElement.innerHTML = '처리 중...';
-            statusElement.className = '';
+            statusElement.classList.remove('success', 'error');
+            statusElement.textContent = '처리 중... 잠시만 기다려주세요.';
             
+            // ** 통신 타임아웃 시간 설정 (5초) **
+            const TIMEOUT_DURATION = 5000; 
+        
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_DURATION);
+        
             try {
-                // ⭐️ POST 요청은 fetch를 사용하며, URL은 재배포된 웹 앱의 URL이어야 합니다. ⭐️
-                if (GAS_API_URL.includes('AKfycbwfqgJqeE3Dfa2NtG5WiVqFWAeKM3zTSl_B2I6oBzhUS702UC20hR-8CNY4Wto1yl5bVg')) {
-                    statusElement.innerHTML = `🚨 ERROR: **GAS_API_URL**이 이전 URL입니다. 1단계 조치를 완료하고 URL을 업데이트하세요.`;
-                    statusElement.className = 'error';
-                    return false;
-                }
-
                 const response = await fetch(GAS_API_URL, {
                     method: 'POST',
-                    // CORS 문제를 해결하기 위해 Content-Type을 text/plain으로 유지합니다.
-                    headers: { 'Content-Type': 'text/plain' }, 
-                    body: JSON.stringify(data)
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8', 
+                    },
+                    body: JSON.stringify(data),
+                    signal: controller.signal // 타임아웃 신호 추가
                 });
                 
-                const responseText = await response.text();
-                let result;
-                try {
-                    result = JSON.parse(responseText);
-                } catch (e) {
-                    console.error('GAS POST 응답 파싱 실패:', responseText);
-                    statusElement.innerHTML = `ERROR: 서버 응답을 해석할 수 없습니다. GAS 스크립트 오류(${response.status}). 응답이 JSON 형식이 아닙니다.`;
-                    statusElement.className = 'error';
-                    return false;
+                clearTimeout(timeoutId);
+        
+                // 1. HTTP 응답 자체가 성공 (200 OK)인지 확인
+                if (!response.ok) {
+                    throw new Error(`HTTP 오류 발생: ${response.status} ${response.statusText}`);
                 }
-
+        
+                const result = await response.json();
+        
+                // 2. GAS 응답 결과 (success: true/false) 확인
                 if (result.success) {
-                    statusElement.innerHTML = `SUCCESS: ${result.message}`;
-                    statusElement.className = 'success';
+                    statusElement.classList.add('success');
+                    statusElement.textContent = `✅ 성공: ${result.message}`;
                     return true;
                 } else {
-                    statusElement.innerHTML = `ERROR: ${result.message}`;
-                    statusElement.className = 'error';
+                    statusElement.classList.add('error');
+                    statusElement.textContent = `❌ 서버 오류: ${result.message}`;
+                    console.error('GAS Logic Error:', result.message);
                     return false;
                 }
+        
             } catch (error) {
-                // 🚨 에러 메시지 상세화 🚨
-                statusElement.innerHTML = `🔴 **통신 실패 (Load failed)**: 서버 연결 오류 또는 보안 차단<br>
-                                            1. **GAS 재배포**를 하셨습니까?<br>
-                                            2. **GAS_API_URL**이 최신 주소로 정확히 업데이트되었습니까?<br>
-                                            3. (가장 중요) GAS 웹 앱의 **액세스 권한**이 **"누구나"**로 설정되었습니까?<br>
-                                            (메시지: ${error.message})`;
-                statusElement.className = 'error';
-                return false;
+                clearTimeout(timeoutId);
+                
+                // ** 3. 통신 오류 발생 시 (핵심) **
+                statusElement.classList.add('error');
+                
+                if (error.name === 'AbortError') {
+                    // 타임아웃 발생 (데이터는 GAS에 기록됐을 가능성 큼)
+                    statusElement.textContent = '⚠️ 타임아웃 오류: 데이터는 기록되었을 수 있습니다. 시트를 확인하세요.';
+                    console.warn('Timeout Aborted. Data might be recorded.');
+                    return true; // ⚠️ 타임아웃 시 성공으로 간주하고 UI 초기화 (시트 확인 유도)
+                    
+                } else if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+                    // 네트워크 오류 (CORS, URL 불일치 등)
+                    statusElement.textContent = '🚨 통신 실패 (URL 또는 네트워크 오류): GAS URL을 확인하거나 다시 시도하세요.';
+                    console.error('Fetch Failed:', error);
+                    return false;
+                } else {
+                    // 기타 오류 (파싱 실패, HTTP 오류 등)
+                    statusElement.textContent = `🔴 심각한 오류: ${error.message}`;
+                    console.error('Critical Error:', error);
+                    return false;
+                }
             }
         }
 
@@ -819,6 +837,7 @@
     </script>
 </body>
 </html>
+
 
 
 
