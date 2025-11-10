@@ -475,49 +475,61 @@
 
             try {
                 if (GAS_API_URL === 'YOUR_GAS_API_URL_HERE') {
-                    console.error('GAS API URL이 설정되지 않았습니다.');
-                    throw new Error('GAS API URL 미설정');
+                    // ... (기존 에러 메시지) ...
+                    alert('🚨 GAS API URL이 설정되지 않았습니다. 코드를 확인하세요.');
+                    return;
                 }
                 
                 const url = `${GAS_API_URL}?action=GET_ITEM&barcode=${barcode}`;
                 const response = await fetch(url);
-                const result = await response.json();
 
+                // ⭐️ 응답 텍스트를 먼저 가져와서 파싱 오류에 대비 ⭐️
+                const responseText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('GAS GET 응답 파싱 실패:', responseText);
+                    alert('🚨 상품 정보 조회 실패: 서버가 JSON 형식으로 응답하지 않았습니다. (GAS 스크립트 오류)');
+                    throw new Error("Invalid JSON response from server");
+                }
+                
                 if (result.success && result.item) {
+                    // ... (기존 성공 로직 동일) ...
                     const itemName = result.item.itemName;
                     const itemCode = result.item.itemCode;
 
-                    // 입고 폼: 기존 값이 없거나 비어있으면 자동 기입 (신규 등록을 위해 사용자 입력 허용)
+                    // 입고 폼: 기존 값이 없거나 비어있으면 자동 기입 
                     if (formType === 'inbound') {
                         if (!document.getElementById('itemName').value) document.getElementById('itemName').value = itemName;
                         if (!document.getElementById('itemCode').value) document.getElementById('itemCode').value = itemCode;
                     } 
                     
-                    // 출고/수정 폼: 무조건 자동 기입 (read-only 필드)
+                    // 출고/수정 폼: 무조건 자동 기입 
                     document.getElementById('p_itemName').value = itemName;
                     document.getElementById('p_itemCode').value = itemCode;
                     document.getElementById('u_itemName').value = itemName;
                     document.getElementById('u_itemCode').value = itemCode;
 
                 } else {
-                    // 상품 정보 없음
+                    // ... (기존 정보 없음 로직 동일) ...
                     if (formType === 'inbound') {
                         document.getElementById('itemName').value = '';
                         document.getElementById('itemCode').value = '';
-                        alert('상품 정보가 마스터에 없습니다. 입고 시 상품명과 상품코드를 입력하면 신규 등록됩니다.');
+                        alert(`⚠️ ${barcode}의 상품 정보가 마스터에 없습니다. 입고 시 상품명/상품코드를 입력하면 신규 등록됩니다.`);
                     } else {
-                        // 출고/수정은 마스터에 없으면 작업 불가
                         document.getElementById('p_itemName').value = 'N/A';
                         document.getElementById('p_itemCode').value = 'N/A';
                         document.getElementById('u_itemName').value = 'N/A';
                         document.getElementById('u_itemCode').value = 'N/A';
-                        alert('출고/수정 작업: 마스터에 없는 상품은 작업할 수 없습니다.');
+                        alert(`⚠️ ${barcode}의 재고 정보가 마스터에 없습니다. (조회 메시지: ${result.message})`);
                     }
                 }
             } catch (error) {
+                // 통신 자체의 실패 또는 위에 명시된 JSON 파싱 오류
                 console.error('상품 정보 조회 오류:', error);
-                alert(`상품 정보 조회 통신 오류 발생. GAS URL 또는 네트워크를 확인하세요: ${error.message}`);
-                // 통신 오류 시에도 N/A 처리하여 사용자에게 인지시킴
+                alert(`🔴 통신/조회 스크립트 오류: ${error.message}.`);
+                // 오류 시 필드 N/A 처리
                 document.getElementById('p_itemName').value = 'Error';
                 document.getElementById('p_itemCode').value = 'Error';
                 document.getElementById('u_itemName').value = 'Error';
@@ -747,3 +759,4 @@
     </script>
 </body>
 </html>
+
