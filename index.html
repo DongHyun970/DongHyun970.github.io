@@ -125,8 +125,7 @@
         
         /** 스캐너 정지 */
         function stopScanner() {
-            if (html5QrcodeScanner && html5QrcodeScanner.is
-              scanning) {
+            if (html5QrcodeScanner && html5QrcodeScanner.isscanning) {
                 html5QrcodeScanner.stop().then(() => {
                     document.getElementById('reader').style.display = 'none';
                     html5QrcodeScanner = null;
@@ -219,4 +218,5 @@
     </script>
 </body>
 </html>
+
 
