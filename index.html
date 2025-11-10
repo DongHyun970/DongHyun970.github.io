@@ -3,42 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>바코드 입출고 관리</title>
+  <title>창고 바코드 입출고 시스템</title>
   <script src="https://unpkg.com/@zxing/library@latest"></script>
   <script defer src="script.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 10px; }
-    video { width: 100%; max-width: 500px; border: 2px solid #ccc; border-radius: 6px; }
-    input, select, button { margin-top: 10px; width: 90%; max-width: 400px; padding: 10px; font-size: 16px; }
+    body { font-family: sans-serif; padding: 10px; text-align: center; }
+    video { width: 100%; max-width: 480px; border: 2px solid #ccc; border-radius: 6px; }
+    select, input, button { margin-top: 8px; width: 90%; max-width: 400px; padding: 10px; font-size: 16px; }
+    .info-box { text-align: left; margin: 10px auto; max-width: 400px; }
   </style>
 </head>
 <body>
-  <h2>📦 바코드 입출고 관리</h2>
+  <h2>📦 실시간 입출고 관리</h2>
 
   <video id="preview"></video>
 
-  <div>
+  <div class="info-box">
     <label>바코드</label><br>
-    <input id="barcode" readonly placeholder="바코드가 자동 인식됩니다.">
+    <input id="barcode" readonly>
+    <div id="productInfo"></div>
   </div>
 
-  <div>
-    <label>수량</label><br>
-    <input id="quantity" type="number" value="1" min="1">
-  </div>
+  <select id="type">
+    <option value="입고">입고</option>
+    <option value="출고">출고</option>
+  </select>
 
-  <div>
-    <label>위치</label><br>
-    <input id="location" type="text" placeholder="예: A-01">
-  </div>
+  <input id="product" placeholder="상품명">
+  <input id="itemCode" placeholder="아이템 코드">
+  <input id="batch" placeholder="배치번호 (예: B20251110)">
+  <input id="qty" type="number" min="1" placeholder="수량">
 
-  <div>
-    <label>입출고 구분</label><br>
-    <select id="inout">
-      <option value="입고">입고</option>
-      <option value="출고">출고</option>
-    </select>
-  </div>
+  <select id="manager">
+    <option>홍길동</option>
+    <option>이철수</option>
+    <option>박영희</option>
+  </select>
+
+  <select id="rack">
+    <option value="A">A 랙</option>
+    <option value="B">B 랙</option>
+    <option value="C">C 랙</option>
+  </select>
+
+  <input id="column" type="number" min="1" placeholder="열 (1~)">
+  <input id="level" type="number" min="1" placeholder="층 (1~)">
+  <select id="side">
+    <option value="좌측">좌측</option>
+    <option value="우측">우측</option>
+  </select>
 
   <button id="saveBtn">저장</button>
 
