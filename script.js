@@ -75,7 +75,6 @@ async function startScanner() {
     }
 }
 
-/** 바코드를 이용해 상품 정보를 스프레드시트에서 조회합니다. */
 async function loadProductInfo(barcode) {
     productInfo.innerHTML = '불러오는 중...';
     // 로케이션 필드 초기화 (조회 데이터로 덮어쓸 예정)
@@ -85,30 +84,32 @@ async function loadProductInfo(barcode) {
         const res = await fetch(`${WEB_APP_URL}?barcode=${barcode}`);
         
         if (!res.ok) {
+            // 403, 404 등의 HTTP 오류를 정확히 표시
             throw new Error(`Apps Script 요청 실패: HTTP ${res.status}`);
         }
         
-        // ⭐️⭐️ 핵심 수정: 응답을 텍스트로 받은 후 수동으로 JSON 파싱 ⭐️⭐️
+        // 응답을 텍스트로 받은 후 수동으로 JSON 파싱 시도
         const textData = await res.text();
         let data;
+        
         try {
-            // Apps Script에서 보낸 JSON 문자열을 수동으로 파싱
             data = JSON.parse(textData); 
         } catch (e) {
-            // JSON 파싱 실패 시, Apps Script 설정 오류 또는 잘못된 응답 데이터일 가능성 높음
-            productInfo.innerHTML = '❌ 데이터 파싱 실패';
-            // 디버깅을 위해 에러를 콘솔에 출력하는 것이 좋습니다.
+            // JSON 파싱 실패 시: Apps Script에서 유효하지 않은 응답을 보냈거나(예: HTML 오류 페이지), 
+            // 응답이 잘렸을 가능성.
             console.error("JSON 파싱 오류:", e, "수신 텍스트:", textData);
-            return;
+            throw new Error(`데이터 파싱 오류: 응답 형식이 유효한 JSON이 아닙니다.`);
         }
         
+        // ⭐️⭐️ 신규 등록 로직 (조회 성공 및 데이터 없음) ⭐️⭐️
         if (data.length > 0) {
-            // 가장 최근의 재고 정보를 표시합니다.
+            // ... (기존 상품 발견 로직)
             const last = data[data.length - 1]; 
             
             productInput.value = last[1];
             itemCodeInput.value = last[2];
             
+            // 로케이션 정보는 조회된 정보로 필드를 채웁니다.
             rackSelect.value = last[4];
             columnInput.value = last[5];
             levelInput.value = last[6];
@@ -121,12 +122,16 @@ async function loadProductInfo(barcode) {
                 최근 위치: ${last[4]}-${last[5]}-${last[6]}-${last[7]}
             `;
         } else {
+            // 이 부분이 정상적으로 실행되면, 연결은 성공했고 바코드만 없는 경우임
             productInfo.innerHTML = '⚠️ **신규 상품입니다.** 상품명과 코드를 입력하고 위치를 지정하세요.';
             productInput.value = '';
             itemCodeInput.value = '';
         }
     } catch (err) {
-        productInfo.innerHTML = '❌ 조회 실패: ' + err.message;
+        // 연결 실패 또는 HTTP/파싱 오류
+        statusText.textContent = `⚠️ 오류: ${err.message}`;
+        productInfo.innerHTML = '❌ **조회 실패: Apps Script 연결 또는 처리 문제**';
+        console.error("최종 연결/처리 오류:", err);
     }
 }
 
@@ -187,4 +192,5 @@ typeSelect.addEventListener('change', toggleLocationFields);
 
 // 초기 실행
 startScanner();
+
 
