@@ -712,7 +712,7 @@
                 itemName: itemNameValue,
                 itemCode: itemCodeValue,
                 responsiblePerson: responsiblePersonValue, 
-                action: "IN_LOC"
+                action: "INBOUND"
             };
             
             const success = await sendDataToGAS(data, statusMessage);
@@ -760,7 +760,7 @@
                 itemName: document.getElementById('p_itemName').value.trim(),
                 itemCode: document.getElementById('p_itemCode').value.trim(),
                 responsiblePerson: pResponsiblePersonValue, 
-                action: "OUT_PICK"
+                action: "OUTBOUND"
             };
 
             const success = await sendDataToGAS(data, pickingStatusMessage);
@@ -826,5 +826,6 @@
     </script>
 </body>
 </html>
+
 
 
