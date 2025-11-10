@@ -1,6 +1,9 @@
+const WEB_APP_URL = "https://script.google.com/macros/s/여기에_웹앱_URL_붙여넣기/exec";
+
 const codeReader = new ZXing.BrowserMultiFormatReader();
 const videoElement = document.getElementById('preview');
 const barcodeInput = document.getElementById('barcode');
+const productInfo = document.getElementById('productInfo');
 const saveBtn = document.getElementById('saveBtn');
 const statusText = document.getElementById('status');
 
@@ -11,38 +14,67 @@ async function startScanner() {
     await codeReader.decodeFromVideoDevice(backCamera.deviceId, videoElement, (result, err) => {
       if (result) {
         barcodeInput.value = result.text;
+        loadProductInfo(result.text);
       }
     });
   } catch (e) {
-    statusText.textContent = '카메라를 불러오지 못했습니다: ' + e;
+    statusText.textContent = '카메라 불러오기 실패: ' + e;
   }
 }
 
-startScanner();
+async function loadProductInfo(barcode) {
+  productInfo.innerHTML = '불러오는 중...';
+  try {
+    const res = await fetch(`${WEB_APP_URL}?barcode=${barcode}`);
+    const data = await res.json();
+    if (data.length > 0) {
+      const last = data[data.length - 1];
+      document.getElementById('product').value = last[1];
+      document.getElementById('itemCode').value = last[2];
+      productInfo.innerHTML = `최근 배치: ${last[3]} / 수량: ${last[8]} / 위치: ${last[4]}-${last[5]}-${last[6]}-${last[7]}`;
+    } else {
+      productInfo.innerHTML = '신규 상품입니다.';
+      document.getElementById('product').value = '';
+      document.getElementById('itemCode').value = '';
+    }
+  } catch (err) {
+    productInfo.innerHTML = '조회 실패';
+  }
+}
 
-// 저장 버튼 클릭 시 Google Sheets API 호출
 saveBtn.addEventListener('click', async () => {
-  const barcode = barcodeInput.value;
-  const qty = document.getElementById('quantity').value;
-  const loc = document.getElementById('location').value;
-  const inout = document.getElementById('inout').value;
+  const payload = {
+    type: document.getElementById('type').value,
+    barcode: barcodeInput.value,
+    product: document.getElementById('product').value,
+    itemCode: document.getElementById('itemCode').value,
+    batch: document.getElementById('batch').value,
+    rack: document.getElementById('rack').value,
+    column: document.getElementById('column').value,
+    level: document.getElementById('level').value,
+    side: document.getElementById('side').value,
+    qty: document.getElementById('qty').value,
+    manager: document.getElementById('manager').value
+  };
 
-  if (!barcode) return alert('바코드가 인식되지 않았습니다.');
+  if (!payload.barcode || !payload.qty || !payload.batch) {
+    alert('바코드, 수량, 배치번호는 필수입니다.');
+    return;
+  }
 
   statusText.textContent = '저장 중...';
 
   try {
-    // Google Apps Script 웹앱 URL로 POST
-    const response = await fetch('https://script.google.com/macros/s/웹앱_URL/exec', {
+    const res = await fetch(WEB_APP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode, qty, loc, inout })
+      body: JSON.stringify(payload)
     });
-
-    const text = await response.text();
-    if (text === 'OK') statusText.textContent = '✅ 저장 완료';
-    else statusText.textContent = '⚠️ 저장 실패: ' + text;
+    const result = await res.text();
+    statusText.textContent = `✅ ${result}`;
   } catch (e) {
     statusText.textContent = '⚠️ 오류: ' + e.message;
   }
 });
+
+startScanner();
