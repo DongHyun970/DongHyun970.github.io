@@ -15,7 +15,7 @@
             --info-color: #ffc107;
             --background-color: #f8f9fa;
             --card-background: #ffffff;
-            --text-color: #343a30;
+            --text-color: #343a40;
             --shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         body { 
@@ -213,6 +213,15 @@
                     <label for="quantity">수량 (입고):</label>
                     <input type="number" id="quantity" value="1" min="1" required>
                 </div>
+                
+                <div class="form-group">
+                    <label for="responsiblePerson">담당자:</label>
+                    <select id="responsiblePerson" required>
+                        <option value="김동현" selected>김동현</option>
+                        <option value="김동현2">김동현2</option>
+                    </select>
+                </div>
+
 
                 <button type="submit" class="action-button">✅ 로케이션 지정 및 입고</button>
             </form>
@@ -266,6 +275,14 @@
                 <div class="form-group">
                     <label for="p_quantity">수량 (출고):</label>
                     <input type="number" id="p_quantity" value="1" min="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="p_responsiblePerson">담당자:</label>
+                    <select id="p_responsiblePerson" required>
+                        <option value="김동현" selected>김동현</option>
+                        <option value="김동현2">김동현2</option>
+                    </select>
                 </div>
 
                 <button type="submit" class="action-button">🔴 재고 출고 처리</button>
@@ -322,6 +339,15 @@
                     <input type="number" id="u_currentQuantity" value="0" min="0" required>
                     <small>이 로케이션의 재고를 입력된 수량으로 **덮어씁니다**.</small>
                 </div>
+                
+                <div class="form-group">
+                    <label for="u_responsiblePerson">담당자:</label>
+                    <select id="u_responsiblePerson" required>
+                        <option value="김동현" selected>김동현</option>
+                        <option value="김동현2">김동현2</option>
+                    </select>
+                </div>
+
 
                 <button type="submit" class="action-button">🔄 재고 수량으로 수정</button>
             </form>
@@ -341,8 +367,9 @@
         const SHEET_ID = '1v5ogbr-49ttfBQISH_S5mIdUTthqhytHmfvvr9IsSMo'; // Google Sheets URL에서 추출
         const MASTER_SHEET_GID = '17496908'; // Inventory_Master 시트의 GID. (URL의 #gid= 값)
 
-        // 입/출고 POST 요청을 위한 GAS URL (기존 URL 유지)
-        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwfqgJqeE3Dfa2NtG5WiVqFWAeKM3zTSl_B2I6oBzhUS702UC20hR-8CNY4Wto1yl5bVg/exec'; 
+        // 입/출고 POST 요청을 위한 GAS URL 
+        // 🚨🚨🚨 GAS 웹 앱 재배포 후 반드시 최신 URL로 업데이트해야 합니다. 🚨🚨🚨
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzU6IDT9s9_yyEDT156fHkiMtYcpDTF7U4krlUp_Og4fcWS17xYF37sd5a4FrGrAQnSHA/exec'; 
         
         // **********************************************
         // 1. 상태 변수 및 유틸리티
@@ -381,7 +408,7 @@
             
             if (rackCol) rackCol = padTwoDigits(rackCol);
             if (rackFloor) rackFloor = padTwoDigits(rackFloor);
-            if (rackSide) rackSide = padTwoDigits(rackSide);
+            // rackSide는 1 또는 2이므로 padTwoDigits를 사용하지 않습니다.
             
             const locationCode = (rackCol && rackFloor && rackSide) ? `${rackCol}-${rackFloor}-${rackSide}` : '';
             
@@ -414,7 +441,7 @@
         }
 
         // **********************************************
-        // 3. 스캐너 및 바코드 자동 완성
+        // 3. 스캐너 및 바코드 자동 완성 (기존과 동일하게 유지)
         // **********************************************
 
         function onScanSuccess(decodedText) {
@@ -473,7 +500,7 @@
 
             const updateFields = (status) => {
                 const value = status === 'loading' ? '조회 중...' : 'Error';
-                const empty = status === 'error' ? 'N/A' : '';
+                const empty = status === 'error' ? 'Error' : '';
                 
                 document.getElementById('p_itemName').value = value;
                 document.getElementById('p_itemCode').value = value;
@@ -481,8 +508,8 @@
                 document.getElementById('u_itemCode').value = value;
                 
                 if (formType === 'inbound') {
-                    document.getElementById('itemName').value = status === 'error' ? 'Error' : empty;
-                    document.getElementById('itemCode').value = status === 'error' ? 'Error' : empty;
+                    document.getElementById('itemName').value = empty;
+                    document.getElementById('itemCode').value = empty;
                 }
             };
             updateFields('loading');
@@ -595,13 +622,16 @@
             
             try {
                 // ⭐️ POST 요청은 fetch를 사용하며, URL은 재배포된 웹 앱의 URL이어야 합니다. ⭐️
-                if (GAS_API_URL === 'YOUR_GAS_API_URL_HERE') {
-                    throw new Error('GAS API URL이 설정되지 않았습니다. POST 요청을 위해 URL을 확인하세요.');
+                if (GAS_API_URL.includes('AKfycbwfqgJqeE3Dfa2NtG5WiVqFWAeKM3zTSl_B2I6oBzhUS702UC20hR-8CNY4Wto1yl5bVg')) {
+                    statusElement.innerHTML = `🚨 ERROR: **GAS_API_URL**이 이전 URL입니다. 1단계 조치를 완료하고 URL을 업데이트하세요.`;
+                    statusElement.className = 'error';
+                    return false;
                 }
 
                 const response = await fetch(GAS_API_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
+                    // CORS 문제를 해결하기 위해 Content-Type을 text/plain으로 유지합니다.
+                    headers: { 'Content-Type': 'text/plain' }, 
                     body: JSON.stringify(data)
                 });
                 
@@ -611,7 +641,7 @@
                     result = JSON.parse(responseText);
                 } catch (e) {
                     console.error('GAS POST 응답 파싱 실패:', responseText);
-                    statusElement.innerHTML = `ERROR: 서버 응답을 해석할 수 없습니다. GAS 스크립트 오류(${response.status}).`;
+                    statusElement.innerHTML = `ERROR: 서버 응답을 해석할 수 없습니다. GAS 스크립트 오류(${response.status}). 응답이 JSON 형식이 아닙니다.`;
                     statusElement.className = 'error';
                     return false;
                 }
@@ -626,27 +656,33 @@
                     return false;
                 }
             } catch (error) {
-                statusElement.innerHTML = `🔴 통신 실패: 서버 연결 또는 네트워크 오류. (메시지: ${error.message})<br>
-                                            GAS 웹 앱 URL이 올바르거나 만료되지 않았는지, GAS의 doPost에 CORS 헤더가 포함되어 있는지 확인하세요.`;
+                // 🚨 에러 메시지 상세화 🚨
+                statusElement.innerHTML = `🔴 **통신 실패 (Load failed)**: 서버 연결 오류 또는 보안 차단<br>
+                                            1. **GAS 재배포**를 하셨습니까?<br>
+                                            2. **GAS_API_URL**이 최신 주소로 정확히 업데이트되었습니까?<br>
+                                            3. (가장 중요) GAS 웹 앱의 **액세스 권한**이 **"누구나"**로 설정되었습니까?<br>
+                                            (메시지: ${error.message})`;
                 statusElement.className = 'error';
                 return false;
             }
         }
 
-        // --- 폼 이벤트 리스너 (기존과 동일하게 유지) ---
+        // --- 폼 이벤트 리스너: 입고 폼 ---
         const locationForm = document.getElementById('locationForm');
         locationForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            // ⭐️ 필수 입력 검증 강화 (대화상자 보장) ⭐️
             if (!document.getElementById('fullLocation').value || 
                 !document.getElementById('barcode').value.trim() ||
                 !document.getElementById('itemName').value.trim() ||
                 !document.getElementById('itemCode').value.trim() ||
                 !document.getElementById('batchNo').value.trim() ||
                 !document.getElementById('quantity').value || 
-                parseInt(document.getElementById('quantity').value, 10) <= 0) 
+                parseInt(document.getElementById('quantity').value, 10) <= 0 ||
+                !document.getElementById('responsiblePerson').value.trim()) // ⭐️ 담당자 필드 검증 추가 ⭐️
             {
-                alert('🚨 필수 입력 항목을 모두 확인하고 다시 시도해주세요.\n(로케이션, 바코드, 상품명, 상품코드, 배치번호, 수량)');
+                alert('🚨 필수 입력 항목을 모두 확인하고 다시 시도해주세요.\n(로케이션, 바코드, 상품명, 상품코드, 배치번호, 수량은 1 이상, 담당자)');
                 return;
             }
 
@@ -655,6 +691,8 @@
             
             const rackType = fullLocationParts[0]; 
             const locationCode = fullLocationParts.slice(1).join('-'); 
+            
+            const responsiblePerson = document.getElementById('responsiblePerson').value.trim();
 
             const data = {
                 barcode: document.getElementById('barcode').value.trim(),
@@ -664,6 +702,7 @@
                 quantity: parseInt(document.getElementById('quantity').value, 10),
                 itemName: document.getElementById('itemName').value.trim(),
                 itemCode: document.getElementById('itemCode').value.trim(),
+                responsiblePerson: responsiblePerson, // ⭐️ 담당자 데이터 추가 ⭐️
                 action: "IN_LOC"
             };
             
@@ -673,19 +712,24 @@
                 document.getElementById('quantity').value = '1';
                 updateLocationField('inbound'); 
                 document.getElementById('barcode').focus();
+                // 담당자 드롭다운의 선택 값은 유지
+                document.getElementById('responsiblePerson').value = responsiblePerson;
             }
         });
 
+        // --- 폼 이벤트 리스너: 출고 폼 ---
         const pickingForm = document.getElementById('pickingForm');
         pickingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            // ⭐️ 필수 입력 검증 강화 (대화상자 보장) ⭐️
             if (!document.getElementById('p_fullLocation').value || 
                 !document.getElementById('p_barcode').value.trim() ||
                 !document.getElementById('p_batchNo').value.trim() ||
                 !document.getElementById('p_quantity').value || 
-                parseInt(document.getElementById('p_quantity').value, 10) <= 0) 
+                parseInt(document.getElementById('p_quantity').value, 10) <= 0 ||
+                !document.getElementById('p_responsiblePerson').value.trim()) // ⭐️ 담당자 필드 검증 추가 ⭐️
             {
-                alert('🚨 필수 입력 항목을 모두 확인하고 다시 시도해주세요.\n(로케이션, 바코드, 배치번호, 수량)');
+                alert('🚨 필수 입력 항목을 모두 확인하고 다시 시도해주세요.\n(로케이션, 바코드, 배치번호, 수량은 1 이상, 담당자)');
                 return;
             }
 
@@ -696,6 +740,8 @@
             
             const rackType = fullLocationParts[0]; 
             const locationCode = fullLocationParts.slice(1).join('-');
+
+            const pResponsiblePerson = document.getElementById('p_responsiblePerson').value.trim();
             
             const data = {
                 barcode: document.getElementById('p_barcode').value.trim(),
@@ -705,6 +751,7 @@
                 quantity: qtyToSubtract, 
                 itemName: document.getElementById('p_itemName').value.trim(),
                 itemCode: document.getElementById('p_itemCode').value.trim(),
+                responsiblePerson: pResponsiblePerson, // ⭐️ 담당자 데이터 추가 ⭐️
                 action: "OUT_PICK"
             };
 
@@ -714,19 +761,24 @@
                 document.getElementById('p_quantity').value = '1';
                 updateLocationField('outbound'); 
                 document.getElementById('p_barcode').focus();
+                // 담당자 드롭다운의 선택 값은 유지
+                document.getElementById('p_responsiblePerson').value = pResponsiblePerson;
             }
         });
         
+        // --- 폼 이벤트 리스너: 재고 수정 폼 ---
         const stockUpdateForm = document.getElementById('stockUpdateForm');
         stockUpdateForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            // ⭐️ 필수 입력 검증 강화 (대화상자 보장) ⭐️
             if (!document.getElementById('u_fullLocation').value || 
                 !document.getElementById('u_barcode').value.trim() ||
                 !document.getElementById('u_batchNo').value.trim() ||
                 document.getElementById('u_currentQuantity').value === undefined || 
-                parseInt(document.getElementById('u_currentQuantity').value, 10) < 0) 
+                parseInt(document.getElementById('u_currentQuantity').value, 10) < 0 ||
+                !document.getElementById('u_responsiblePerson').value.trim()) // ⭐️ 담당자 필드 검증 추가 ⭐️
             {
-                alert('🚨 필수 입력 항목을 모두 확인하고 다시 시도해주세요.\n(로케이션, 바코드, 배치번호, 최종 실사 수량은 0 이상)');
+                alert('🚨 필수 입력 항목을 모두 확인하고 다시 시도해주세요.\n(로케이션, 바코드, 배치번호, 최종 실사 수량은 0 이상, 담당자)');
                 return;
             }
             
@@ -735,6 +787,8 @@
             
             const rackType = fullLocationParts[0]; 
             const locationCode = fullLocationParts.slice(1).join('-');
+
+            const uResponsiblePerson = document.getElementById('u_responsiblePerson').value.trim();
             
             const data = {
                 barcode: document.getElementById('u_barcode').value.trim(),
@@ -744,6 +798,7 @@
                 currentQuantity: document.getElementById('u_currentQuantity').value, 
                 itemName: document.getElementById('u_itemName').value.trim(),
                 itemCode: document.getElementById('u_itemCode').value.trim(),
+                responsiblePerson: uResponsiblePerson, // ⭐️ 담당자 데이터 추가 ⭐️
                 action: "UPDATE_STOCK" 
             };
             
@@ -753,6 +808,8 @@
                 document.getElementById('u_currentQuantity').value = '0';
                 updateLocationField('update'); 
                 document.getElementById('u_barcode').focus();
+                // 담당자 드롭다운의 선택 값은 유지
+                document.getElementById('u_responsiblePerson').value = uResponsiblePerson;
             }
         });
 
